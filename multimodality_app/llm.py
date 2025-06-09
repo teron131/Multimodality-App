@@ -20,7 +20,7 @@ def get_response(
     image_path: str | None = None,
     audio_path: str | None = None,
 ) -> AIMessage:
-    """Get a response from the LLM.
+    """Get a response from the LLM. At least one of text_input, image_path, or audio_path must be provided.
 
     Args:
         text_input: The text input to the LLM.
@@ -42,9 +42,8 @@ def get_response(
     if audio_path:
         audio_base64 = encode_audio(audio_path)
         content.append({"type": "input_audio", "input_audio": {"data": audio_base64, "format": "mp3"}})
-    messages = [HumanMessage(content=content)]
 
-    response = llm.invoke(messages)
+    response = llm.invoke([HumanMessage(content=content)])
 
     return response
 
