@@ -1,6 +1,5 @@
-from .utils import encode_audio, encode_image
+from .llm import get_response
 
 __all__ = [
-    "encode_audio",
-    "encode_image",
+    "get_response",
 ]

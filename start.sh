@@ -56,9 +56,10 @@ serve_html() {
     
     cd "$SCRIPT_DIR"
     
-    # Use Python 3 with the multimodality_app server
+    # Use FastAPI server with uvicorn
     if command -v python3 > /dev/null; then
-        python3 -m multimodality_app.server "$port"
+        echo -e "${GREEN}🚀 Starting FastAPI server with automatic reload...${NC}"
+        python3 -m uvicorn multimodality_app.server:app --host 127.0.0.1 --port "$port" --reload
     else
         echo -e "${RED}❌ Python 3 not found. Cannot start web server.${NC}"
         return 1

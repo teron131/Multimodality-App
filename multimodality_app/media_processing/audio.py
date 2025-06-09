@@ -1,31 +1,10 @@
 import base64
+import tempfile
 from pathlib import Path
 
 import ffmpeg
 
-SUPPORTED_IMAGE_FORMATS = {".png", ".jpeg", ".jpg", ".webp", ".heic", ".heif"}
-SUPPORTED_AUDIO_FORMATS = {".wav", ".mp3", ".aiff", ".aac", ".ogg", ".flac"}
-
-
-def encode_image(image_path: str | Path) -> str:
-    """Convert image file to base64-encoded string.
-
-    Args:
-        image_path: Path to the input image file
-
-    Returns:
-        Base64-encoded image data as string
-
-    Raises:
-        ValueError: If image format is not supported
-    """
-    image_path = Path(image_path)
-
-    if image_path.suffix.lower() not in SUPPORTED_IMAGE_FORMATS:
-        raise ValueError(f"Unsupported image format: {image_path.suffix}. Supported formats: PNG, JPEG, WEBP, HEIC, HEIF")
-
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode("utf-8")
+from .utils import SUPPORTED_AUDIO_FORMATS
 
 
 def encode_audio(audio_path: str | Path) -> str:
@@ -55,3 +34,29 @@ def encode_audio(audio_path: str | Path) -> str:
 
     # Encode to base64
     return base64.b64encode(audio_data).decode("utf-8")
+
+
+def process_uploaded_audio(audio_data: bytes, filename: str) -> str:
+    """Complete audio processing workflow: save → convert → cleanup.
+
+    Args:
+        audio_data: Raw audio bytes from upload
+        filename: Original filename to determine format
+
+    Returns:
+        Base64-encoded audio data ready for Gemini API
+    """
+    # Save to temporary file
+    temp_file = Path(tempfile.mktemp(suffix=Path(filename).suffix or ".webm"))
+
+    try:
+        with open(temp_file, "wb") as f:
+            f.write(audio_data)
+
+        # Convert to base64 (handles all format conversion automatically)
+        return encode_audio(temp_file)
+
+    finally:
+        # Clean up temp file
+        if temp_file.exists():
+            temp_file.unlink()
