@@ -11,12 +11,12 @@ load_dotenv()
 
 # Configuration - determine which LLM backend to use
 LLM_BACKEND = os.getenv("LLM_BACKEND", "gemini").lower()  # "gemini" or "llama"
-BACKEND_PORT = os.getenv("BACKEND_PORT", "8081")
+BACKEND_PORT = os.getenv("BACKEND_PORT", "8080")
 
 # Initialize LLM based on backend configuration
 if LLM_BACKEND == "gemini":
     llm = ChatOpenAI(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-05-20"),
+        model=os.getenv("GEMINI_MODEL"),
         api_key=os.getenv("GOOGLE_API_KEY"),
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     )
@@ -24,7 +24,7 @@ if LLM_BACKEND == "gemini":
 
 elif LLM_BACKEND == "llama":
     llm = ChatOpenAI(
-        model=os.getenv("LLAMA_MODEL", "ultravox-v0_5-llama-3_2-1b"),
+        model=os.getenv("LLAMA_MODEL"),
         base_url=f"http://localhost:{BACKEND_PORT}/v1",
     )
     print(f"🦙 Using Llama backend: localhost:{BACKEND_PORT}")
@@ -92,7 +92,7 @@ def get_llm_info() -> dict:
     if LLM_BACKEND == "gemini":
         return {
             "backend": "gemini",
-            "model": os.getenv("GEMINI_MODEL", "unknown"),
+            "model": os.getenv("GEMINI_MODEL"),
             "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
             "local": False,
             "api_key_required": True,
@@ -103,7 +103,7 @@ def get_llm_info() -> dict:
             "backend": "llama",
             "host": "localhost",
             "port": BACKEND_PORT,
-            "model": os.getenv("LLAMA_MODEL", "unknown"),
+            "model": os.getenv("LLAMA_MODEL"),
             "url": f"http://localhost:{BACKEND_PORT}/v1",
             "local": True,
             "api_key_required": False,
