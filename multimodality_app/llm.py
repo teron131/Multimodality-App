@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
@@ -16,9 +17,9 @@ llm = ChatOpenAI(
 
 
 def get_response(
-    text_input: str | None = None,
-    image_path: str | None = None,
-    audio_path: str | None = None,
+    text_input: str | Path = None,
+    image_path: str | Path = None,
+    audio_path: str | Path = None,
 ) -> AIMessage:
     """Get a response from the LLM. At least one of text_input, image_path, or audio_path must be provided.
 
@@ -46,12 +47,3 @@ def get_response(
     response = llm.invoke([HumanMessage(content=content)])
 
     return response
-
-
-if __name__ == "__main__":
-    response = get_response(
-        text_input="What do you see and hear?",
-        image_path="image/150920049.png",
-        audio_path="audio/sXoSILzgFug.m4a",
-    )
-    print(response.content)

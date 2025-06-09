@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <title>AudioInsight-Gemini Prototype - RELOAD 20250606_062806</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.ready { background-color: #d4edda; color: #155724; }
+        .status.recording { background-color: #fff3cd; color: #856404; }
+        .status.processing { background-color: #cce7ff; color: #004085; }
+        .status.error { background-color: #f8d7da; color: #721c24; }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .record-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .record-btn:hover {
+            background-color: #c82333;
+        }
+        
+        .record-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .stop-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .stop-btn:hover {
+            background-color: #5a6268;
+        }
+        
+        .test-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .test-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .api-key-section {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        
+        .output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .server-info {
+            background-color: #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .audio-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        
+        .info-card h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .recording-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: #dc3545;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ AudioInsight-Gemini Prototype</h1>
+        <div class="subtitle" style="text-align: center; color: #666; margin-bottom: 30px;">
+            Exploring Google Gemini 2.5 Flash with multimodal audio processing
+        </div>
+        
+        <div class="api-key-section">
+            <h3>🔑 API Configuration</h3>
+            <p><strong>Status:</strong> <span id="apiKeyStatus">Loading...</span></p>
+            <div id="manualKeySection" class="hidden">
+                <label for="apiKey">Google API Key:</label>
+                <input type="password" id="apiKey" class="api-key-input" placeholder="Enter your Google API key here...">
+                <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                    Get your key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>
+                </p>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                💡 Add <code>GOOGLE_API_KEY=your_key</code> to your .env file to auto-load the key
+            </p>
+        </div>
+        
+        <div class="server-info">
+            <h3>🖥️ Service Configuration</h3>
+            <p><strong>Model:</strong> gemini-2.5-flash-preview-05-20</p>
+            <p><strong>Endpoint:</strong> https://generativelanguage.googleapis.com/v1beta/openai/</p>
+            <p><strong>Status:</strong> <span id="serverStatus">Ready</span></p>
+        </div>
+        
+        <div class="status ready" id="statusDiv">Ready to record</div>
+        
+        <div class="controls">
+            <button class="record-btn" id="recordBtn" onclick="startRecording()">
+                🎙️ Start Recording
+            </button>
+            <button class="stop-btn" id="stopBtn" onclick="stopRecording()" disabled>
+                ⏹️ Stop Recording
+            </button>
+            <button class="test-btn" onclick="testAPI()">
+                🔍 Test API
+            </button>
+        </div>
+        
+        <div class="audio-info">
+            <div class="info-card">
+                <h3>📊 Recording Info</h3>
+                <p>Duration: <span id="duration">0s</span></p>
+                <p>Sample Rate: <span id="sampleRate">-</span></p>
+                <p>Channels: <span id="channels">-</span></p>
+            </div>
+            <div class="info-card">
+                <h3>🎵 Audio Format</h3>
+                <p>Format: WAV (16-bit PCM)</p>
+                <p>Target Rate: 16kHz</p>
+                <p>Processing: Cloud-based</p>
+            </div>
+        </div>
+        
+        <div class="output" id="output">Transcript and analysis will appear here...\n\n📝 Instructions:\n1. Enter your Google API key above\n2. Click "Test API" to verify connection\n3. Click "Start Recording" to begin audio capture\n4. Speak clearly into your microphone\n5. Click "Stop Recording" to process the audio\n6. View the Gemini analysis results below</div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let startTime;
+        let durationInterval;
+        let cachedApiKey = null;
+        
+        const API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+        const MODEL_NAME = 'gemini-2.5-flash-preview-05-20';
+        
+        // Load API key on page load
+        window.addEventListener('load', function() {
+            loadApiKey();
+        });
+        
+        async function loadApiKey() {
+            const statusElement = document.getElementById('apiKeyStatus');
+            const manualSection = document.getElementById('manualKeySection');
+            
+            try {
+                statusElement.textContent = 'Loading from environment...';
+                
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                
+                if (config.has_key && config.google_api_key) {
+                    cachedApiKey = config.google_api_key;
+                    statusElement.textContent = '✅ API key loaded from .env file';
+                    statusElement.style.color = '#28a745';
+                } else {
+                    statusElement.textContent = '⚠️ No API key found in .env file';
+                    statusElement.style.color = '#ffc107';
+                    manualSection.classList.remove('hidden');
+                }
+            } catch (error) {
+                statusElement.textContent = '❌ Failed to load from server (using manual input)';
+                statusElement.style.color = '#dc3545';
+                manualSection.classList.remove('hidden');
+                console.error('Failed to load API key from server:', error);
+            }
+        }
+        
+        function getApiKey() {
+            // Use cached API key if available
+            if (cachedApiKey) {
+                return cachedApiKey;
+            }
+            
+            // Fall back to manual input
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                throw new Error('Please enter your Google API key or add it to your .env file');
+            }
+            return apiKey;
+        }
+        
+        async function testAPI() {
+            const output = document.getElementById('output');
+            
+            try {
+                const apiKey = getApiKey();
+                output.textContent += '\n🔍 Testing Gemini API connection...\n';
+                
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: "Hello! Just testing the API connection. Please respond with a simple greeting."
+                                    }
+                                ]
+                            }
+                        ],
+                        max_tokens: 50
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    output.textContent += `✅ API test successful!\n`;
+                    output.textContent += `Response: ${data.choices[0].message.content}\n`;
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                output.textContent += `❌ API test failed: ${error.message}\n`;
+                if (error.message.includes('API key')) {
+                    output.textContent += '💡 Make sure you entered a valid Google API key\n';
+                }
+            }
+        }
+        
+        async function startRecording() {
+            try {
+                // Check API key first
+                getApiKey();
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                // Update UI
+                updateStatus('recording', '🔴 Recording...');
+                document.getElementById('recordBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                // Update audio info
+                const audioTrack = stream.getAudioTracks()[0];
+                const settings = audioTrack.getSettings();
+                document.getElementById('sampleRate').textContent = `${settings.sampleRate}Hz`;
+                document.getElementById('channels').textContent = settings.channelCount || 1;
+                
+                // Start recording
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = function() {
+                    stream.getTracks().forEach(track => track.stop());
+                    processAudio();
+                };
+                
+                mediaRecorder.start();
+                startTime = Date.now();
+                
+                // Update duration counter
+                durationInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    document.getElementById('duration').textContent = `${elapsed}s`;
+                }, 1000);
+                
+                document.getElementById('output').textContent += '\n🎙️ Recording started...\n';
+                
+            } catch (error) {
+                updateStatus('error', '❌ Error accessing microphone');
+                document.getElementById('output').textContent += `\n❌ Error: ${error.message}\n`;
+                console.error('Error:', error);
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                clearInterval(durationInterval);
+                
+                updateStatus('processing', '⏳ Processing audio...');
+                document.getElementById('recordBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                
+                document.getElementById('output').textContent += '⏹️ Recording stopped, processing...\n';
+            }
+        }
+        
+        async function processAudio() {
+            try {
+                const apiKey = getApiKey();
+                
+                // Create blob from recorded chunks
+                const audioBlob = new Blob(recordedChunks, { type: 'audio/webm;codecs=opus' });
+                
+                document.getElementById('output').textContent += `📁 Audio blob created: ${audioBlob.size} bytes\n`;
+                
+                // Convert WebM to WAV format for Gemini API
+                document.getElementById('output').textContent += `🔄 Converting audio to WAV format...\n`;
+                const wavBlob = await convertToWav(audioBlob);
+                
+                // Convert WAV to base64
+                const audioBase64 = await blobToBase64(wavBlob);
+                
+                document.getElementById('output').textContent += `🔄 Sending to Gemini API...\n`;
+                
+                // Send to Gemini API
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: "Please transcribe this audio recording and provide any additional insights about what you hear."
+                                    },
+                                    {
+                                        type: "input_audio",
+                                        input_audio: {
+                                            data: audioBase64,
+                                            format: "wav"
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        max_tokens: 1000
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    displayResults(result);
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`API request failed: ${response.status} - ${errorText}`);
+                }
+                
+            } catch (error) {
+                updateStatus('error', '❌ Processing failed');
+                document.getElementById('output').textContent += `\n❌ Processing error: ${error.message}\n`;
+                console.error('Processing error:', error);
+            }
+        }
+        
+        async function convertToWav(audioBlob) {
+            return new Promise((resolve, reject) => {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const reader = new FileReader();
+                
+                reader.onload = async function(e) {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        
+                        // Create WAV file from audio buffer
+                        const wavBlob = createWavBlob(audioBuffer);
+                        resolve(wavBlob);
+                        
+                    } catch (error) {
+                        reject(new Error(`Audio conversion failed: ${error.message}`));
+                    }
+                };
+                
+                reader.onerror = () => reject(new Error('Failed to read audio blob'));
+                reader.readAsArrayBuffer(audioBlob);
+            });
+        }
+        
+        function createWavBlob(audioBuffer) {
+            const numberOfChannels = 1; // Mono
+            const sampleRate = audioBuffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+            
+            // Get mono audio data
+            const audioData = audioBuffer.getChannelData(0);
+            const length = audioData.length;
+            
+            // Create buffer for WAV file
+            const arrayBuffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // Helper function to write string
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            // WAV file header
+            writeString(0, 'RIFF');                           // ChunkID
+            view.setUint32(4, 36 + length * 2, true);        // ChunkSize
+            writeString(8, 'WAVE');                           // Format
+            writeString(12, 'fmt ');                          // Subchunk1ID
+            view.setUint32(16, 16, true);                     // Subchunk1Size
+            view.setUint16(20, format, true);                 // AudioFormat
+            view.setUint16(22, numberOfChannels, true);       // NumChannels
+            view.setUint32(24, sampleRate, true);             // SampleRate
+            view.setUint32(28, sampleRate * numberOfChannels * bitDepth / 8, true); // ByteRate
+            view.setUint16(32, numberOfChannels * bitDepth / 8, true); // BlockAlign
+            view.setUint16(34, bitDepth, true);               // BitsPerSample
+            writeString(36, 'data');                          // Subchunk2ID
+            view.setUint32(40, length * 2, true);            // Subchunk2Size
+            
+            // Convert audio data to 16-bit PCM
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, audioData[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+        
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1]; // Remove data:audio/wav;base64, prefix
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+        
+        function displayResults(result) {
+            const output = document.getElementById('output');
+            
+            updateStatus('ready', '✅ Processing complete');
+            
+            output.textContent += '\n' + '='.repeat(50) + '\n';
+            output.textContent += '📋 GEMINI RESULTS:\n';
+            output.textContent += '='.repeat(50) + '\n';
+            
+            if (result.choices && result.choices.length > 0) {
+                const choice = result.choices[0];
+                output.textContent += `🤖 Gemini Response:\n${choice.message?.content || 'No content received'}\n\n`;
+            }
+            
+            output.textContent += `📊 Usage Info:\n`;
+            if (result.usage) {
+                output.textContent += `- Input tokens: ${result.usage.prompt_tokens || 'N/A'}\n`;
+                output.textContent += `- Output tokens: ${result.usage.completion_tokens || 'N/A'}\n`;
+                output.textContent += `- Total tokens: ${result.usage.total_tokens || 'N/A'}\n`;
+            }
+            
+            output.textContent += '\n' + '='.repeat(50) + '\n';
+            
+            // Auto-scroll to bottom
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function updateStatus(type, message) {
+            const statusDiv = document.getElementById('statusDiv');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message + (type === 'recording' ? '<span class="recording-indicator"></span>' : '');
+        }
+    </script>
+</body>
+</html> 
