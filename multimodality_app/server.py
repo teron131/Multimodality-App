@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .llm import get_response
+from .llm import get_llm_info, get_response
 from .media_processing import (
     AUDIO_MIME_TYPES,
     SUPPORTED_IMAGE_FORMATS,
@@ -43,14 +43,19 @@ app.mount("/static", StaticFiles(directory=static_dir, html=True), name="static"
 
 # Pydantic models
 class ConfigResponse(BaseModel):
-    google_api_key: str
-    has_key: bool
+    backend: str
+    google_api_key: str = ""
+    has_key: bool = False
+    llama_host: str = ""
+    llama_port: str = ""
+    llama_model: str = ""
     server: str = "multimodality-app"
 
 
 class StatusResponse(BaseModel):
     server_status: str = "running"
     message: str = "Audio processing ready"
+    backend: str
 
 
 class AudioUploadResponse(BaseModel):
@@ -115,15 +120,29 @@ async def serve_index():
 
 @app.get("/api/config", response_model=ConfigResponse)
 async def get_config():
-    """Get API configuration including Google API key status."""
-    api_key = os.getenv("GOOGLE_API_KEY", "")
-    return ConfigResponse(google_api_key=api_key, has_key=bool(api_key))
+    """Get API configuration including backend information."""
+    backend_info = get_llm_info()
+
+    config = ConfigResponse(backend=backend_info["backend"])
+
+    if backend_info["backend"] == "gemini":
+        api_key = os.getenv("GOOGLE_API_KEY", "")
+        config.google_api_key = api_key
+        config.has_key = bool(api_key)
+    elif backend_info["backend"] == "llama":
+        config.llama_host = backend_info["host"]
+        config.llama_port = backend_info["port"]
+        config.llama_model = backend_info["model"]
+
+    return config
 
 
 @app.get("/api/status", response_model=StatusResponse)
 async def get_status():
     """Get system status."""
-    return StatusResponse()
+    backend_info = get_llm_info()
+    message = f"Audio processing ready with {backend_info['backend']} backend"
+    return StatusResponse(message=message, backend=backend_info["backend"])
 
 
 @app.post("/api/upload-audio", response_model=AudioUploadResponse)
@@ -308,7 +327,20 @@ async def process_multimodal_unified(audio: UploadFile = File(None), image: Uplo
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    backend_info = get_llm_info()
+
+    if backend_info["backend"] == "llama":
+        try:
+            # Try to connect to llama-cuda server to verify it's running
+            response = get_response(text_input="Health check")
+            return {"status": "healthy", "backend": "llama", "llama_server": "connected", "host": backend_info["host"], "port": backend_info["port"]}
+        except ConnectionError:
+            return {"status": "degraded", "backend": "llama", "llama_server": "disconnected", "message": f"llama-cuda server not available at {backend_info['host']}:{backend_info['port']}"}
+        except Exception as e:
+            return {"status": "degraded", "backend": "llama", "error": str(e)}
+    else:
+        # Gemini backend
+        return {"status": "healthy", "backend": "gemini", "has_api_key": backend_info.get("has_api_key", False)}
 
 
 if __name__ == "__main__":
