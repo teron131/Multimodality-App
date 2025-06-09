@@ -2,7 +2,6 @@ llama-cuda/
 audio/
 image/
 *.pid
-*test*
 
 # Python-generated files
 __pycache__/
