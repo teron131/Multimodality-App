@@ -10,6 +10,9 @@ SUPPORTED_AUDIO_FORMATS = {".wav", ".mp3", ".aiff", ".aac", ".ogg", ".flac"}
 ADDITIONAL_AUDIO_FORMATS = {".webm", ".m4a"}
 ALL_AUDIO_FORMATS = SUPPORTED_AUDIO_FORMATS | ADDITIONAL_AUDIO_FORMATS
 
+# Gemini-supported video formats
+SUPPORTED_VIDEO_FORMATS = {".mp4", ".mpeg", ".mov", ".avi", ".flv", ".mpg", ".webm", ".wmv", ".3gp"}
+
 # MIME type mappings for web uploads
 IMAGE_MIME_TYPES = {
     "image/png": ".png",
@@ -32,6 +35,18 @@ AUDIO_MIME_TYPES = {
     "audio/aiff": ".aiff",
 }
 
+VIDEO_MIME_TYPES = {
+    "video/mp4": ".mp4",
+    "video/mpeg": ".mpeg",
+    "video/mov": ".mov",
+    "video/avi": ".avi",
+    "video/x-flv": ".flv",
+    "video/mpg": ".mpg",
+    "video/webm": ".webm",
+    "video/wmv": ".wmv",
+    "video/3gpp": ".3gp",
+}
+
 
 def is_image_format_supported(file_path: str | Path) -> bool:
     """Check if an image file format is supported."""
@@ -41,3 +56,8 @@ def is_image_format_supported(file_path: str | Path) -> bool:
 def is_audio_format_supported(file_path: str | Path) -> bool:
     """Check if an audio file format is supported."""
     return Path(file_path).suffix.lower() in ALL_AUDIO_FORMATS
+
+
+def is_video_format_supported(file_path: str | Path) -> bool:
+    """Check if a video file format is supported."""
+    return Path(file_path).suffix.lower() in SUPPORTED_VIDEO_FORMATS
