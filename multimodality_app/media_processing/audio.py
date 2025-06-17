@@ -4,8 +4,6 @@ from pathlib import Path
 
 import ffmpeg
 
-from .utils import SUPPORTED_AUDIO_FORMATS
-
 
 def encode_audio(audio_path: str | Path) -> str:
     """Convert audio file to base64-encoded audio data optimized for Gemini.
