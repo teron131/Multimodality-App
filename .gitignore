@@ -1,6 +1,7 @@
 llama-cuda/
 audio/
 image/
+video/
 *.pid
 *test*
 
