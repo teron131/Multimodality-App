@@ -28,6 +28,55 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _create_safe_message_for_logging(message: Dict) -> Dict:
+    """Create a safe representation of WebSocket message for logging by filtering binary data.
+
+    This function provides additional WebSocket-specific filtering beyond the global MediaDataFilter.
+    """
+    if not isinstance(message, dict):
+        return message
+
+    safe_message = {}
+
+    for key, value in message.items():
+        if isinstance(value, str):
+            # Check for base64 audio/image/video data - more aggressive filtering for WebSocket messages
+            if key in ("audio", "image", "video", "data", "content", "buffer") and len(value) > 50:
+                safe_message[key] = f"<{key.upper()}_DATA:{len(value)} chars>"
+            elif len(value) > 500:
+                # Check for base64-like content
+                base64_chars = sum(1 for c in value if c.isalnum() or c in "+/=")
+                if base64_chars / len(value) > 0.7:  # High ratio of base64 chars
+                    safe_message[key] = f"<BASE64_DATA:{len(value)} chars>"
+                elif any(pattern in value.lower() for pattern in ["data:", "/9j/", "ggmp", "ivbor"]):
+                    safe_message[key] = f"<BINARY_DATA:{len(value)} chars>"
+                else:
+                    # Truncate very long strings
+                    safe_message[key] = f"{value[:100]}...({len(value)} total chars)"
+            else:
+                safe_message[key] = value
+        elif isinstance(value, dict):
+            # Recursively process nested dictionaries
+            safe_message[key] = _create_safe_message_for_logging(value)
+        elif isinstance(value, list):
+            # Process lists, checking each item
+            safe_list = []
+            for item in value:
+                if isinstance(item, dict):
+                    safe_list.append(_create_safe_message_for_logging(item))
+                elif isinstance(item, str) and len(item) > 500:
+                    safe_list.append(f"<LIST_ITEM:{len(item)} chars>")
+                else:
+                    safe_list.append(item)
+            safe_message[key] = safe_list
+        elif isinstance(value, bytes):
+            safe_message[key] = f"<BYTES:{len(value)} bytes>"
+        else:
+            safe_message[key] = value
+
+    return safe_message
+
+
 # WebSocket Message Schemas
 class RealtimeConfig(BaseModel):
     """Configuration for real-time session."""
@@ -292,7 +341,10 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                 event_id = message.get("event_id", f"event_{asyncio.get_event_loop().time()}")
 
                 logger.info(f"📨 Received message type: {event_type} for session: {session_id}")
-                logger.debug(f"📄 Message content: {json.dumps(message, indent=2)}")
+
+                # Create safe message representation for logging (without binary data)
+                safe_message = _create_safe_message_for_logging(message)
+                logger.debug(f"📄 Message content: {json.dumps(safe_message, indent=2)}")
 
                 if event_type == "session.update":
                     # Update session configuration
