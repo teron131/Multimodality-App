@@ -20,7 +20,7 @@ BACKEND_PORT = os.getenv("BACKEND_PORT", "8080")
 logger.info(f"🔧 Initializing LLM backend: {LLM_BACKEND}")
 
 if LLM_BACKEND == "gemini":
-    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    model_name = os.getenv("GEMINI_MODEL")
     api_key = os.getenv("GOOGLE_API_KEY")
 
     if not api_key:
@@ -35,7 +35,7 @@ if LLM_BACKEND == "gemini":
     logger.info(f"♊ Gemini backend initialized: {model_name}")
 
 elif LLM_BACKEND == "llama":
-    model_name = os.getenv("LLAMA_MODEL", "llama3.2")
+    model_name = os.getenv("LLAMA_MODEL")
     base_url = f"http://localhost:{BACKEND_PORT}/v1"
 
     llm = ChatOpenAI(
