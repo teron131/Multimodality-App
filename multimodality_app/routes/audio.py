@@ -25,12 +25,12 @@ async def upload_audio(audio: UploadFile = File(...)):
         log_upload_info(audio.filename, len(audio_data), "audio upload")
 
         # Process audio (save → convert → cleanup)
-        audio_base64 = process_uploaded_audio(audio_data, audio.filename)
+        audio_b64 = process_uploaded_audio(audio_data, audio.filename)
 
         return AudioUploadResponse(
             status="success",
             message="Audio processed successfully",
-            audio_base64=audio_base64,
+            audio_b64=audio_b64,
             size_bytes=len(audio_data),
         )
 
@@ -43,7 +43,7 @@ async def process_audio(request: GeminiRequest):
     """Process audio with LLM (legacy endpoint - consider using /api/process-audio-unified)."""
     try:
         # Use enhanced LLM module instead of direct API calls
-        response = get_response(text_input=request.prompt, audio_base64=request.audio_base64)
+        response = get_response(text_input=request.prompt, audio_b64s=[request.audio_b64])
 
         # Convert LangChain response to legacy format for compatibility
         legacy_response = {
@@ -68,10 +68,10 @@ async def process_audio_unified(audio: UploadFile = File(...), prompt: str = DEF
         log_upload_info(audio.filename, len(audio_data), "unified audio processing")
 
         # Process audio (save → convert → cleanup)
-        audio_base64 = process_uploaded_audio(audio_data, audio.filename)
+        audio_b64 = process_uploaded_audio(audio_data, audio.filename)
 
         # Use LLM module for processing (now accepts base64 directly)
-        response = get_response(text_input=prompt, audio_base64=audio_base64)
+        response = get_response(text_input=prompt, audio_b64s=[audio_b64])
 
         return UnifiedProcessResponse(
             status="success",

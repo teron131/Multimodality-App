@@ -28,9 +28,9 @@ async def upload_image(image: UploadFile = File(...)):
         log_upload_info(image.filename, len(image_data), "image upload")
 
         # Process image (save → encode → cleanup)
-        image_base64 = process_uploaded_image(image_data, image.filename)
+        image_b64 = process_uploaded_image(image_data, image.filename)
 
-        return ImageUploadResponse(status="success", message="Image processed successfully", image_base64=image_base64, size_bytes=len(image_data))
+        return ImageUploadResponse(status="success", message="Image processed successfully", image_b64=image_b64, size_bytes=len(image_data))
 
     except Exception as e:
         raise handle_processing_error("Image upload", e)
@@ -53,10 +53,10 @@ async def process_image_unified(image: UploadFile = File(...), prompt: str = DEF
         log_upload_info(image.filename, len(image_data), "unified image processing")
 
         # Process image (save → encode → cleanup)
-        image_base64 = process_uploaded_image(image_data, image.filename)
+        image_b64 = process_uploaded_image(image_data, image.filename)
 
-        # Use LLM module for processing with image_base64
-        response = get_response(text_input=prompt, image_base64=image_base64)
+        # Use LLM module for processing with image_b64
+        response = get_response(text_input=prompt, image_b64s=[image_b64])
 
         return MultimodalResponse(
             status="success",

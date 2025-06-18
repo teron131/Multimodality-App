@@ -56,11 +56,11 @@ class UploadResponse(SuccessResponse):
 
 
 class AudioUploadResponse(UploadResponse):
-    audio_base64: str
+    audio_b64: str
 
 
 class ImageUploadResponse(UploadResponse):
-    image_base64: str
+    image_b64: str
 
 
 # Processing Request Models
@@ -73,7 +73,7 @@ class ProcessingRequest(BaseModel):
 class GeminiRequest(BaseModel):
     """Legacy Gemini API request format."""
 
-    audio_base64: str
+    audio_b64: str
     api_key: Optional[str] = None
     prompt: str = "Please transcribe this audio recording and provide any additional insights about what you hear."
     max_tokens: int = 1000000

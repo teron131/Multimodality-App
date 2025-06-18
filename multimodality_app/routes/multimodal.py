@@ -23,8 +23,8 @@ async def process_multimodal_unified(audio: UploadFile = File(None), image: Uplo
         raise HTTPException(status_code=400, detail="At least one file (audio or image) must be provided")
 
     try:
-        audio_base64 = None
-        image_base64 = None
+        audio_b64 = None
+        image_b64 = None
         total_size = 0
         content_types = []
 
@@ -37,7 +37,7 @@ async def process_multimodal_unified(audio: UploadFile = File(None), image: Uplo
             content_types.append("audio")
 
             # Process audio
-            audio_base64 = process_uploaded_audio(audio_data, audio.filename)
+            audio_b64 = process_uploaded_audio(audio_data, audio.filename)
             log_upload_info(audio.filename, len(audio_data), "multimodal audio")
 
         # Process image if provided
@@ -52,11 +52,11 @@ async def process_multimodal_unified(audio: UploadFile = File(None), image: Uplo
             content_types.append("image")
 
             # Process image
-            image_base64 = process_uploaded_image(image_data, image.filename)
+            image_b64 = process_uploaded_image(image_data, image.filename)
             log_upload_info(image.filename, len(image_data), "multimodal image")
 
         # Use enhanced LLM module for multimodal processing
-        response = get_response(text_input=prompt, audio_base64=audio_base64, image_base64=image_base64)
+        response = get_response(text_input=prompt, audio_b64s=[audio_b64], image_b64s=[image_b64])
 
         content_type_str = " + ".join(content_types)
 

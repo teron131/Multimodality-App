@@ -3,86 +3,763 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Test - Basic Functions</title>
+    <title>Multimodality App - Complete Showcase</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
-        
-        button {
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            font-size: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .tab {
             padding: 10px 20px;
-            margin: 10px;
-            border: none;
-            border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            color: #718096;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
         }
-        
-        .record { background-color: #dc3545; color: white; }
-        .stop { background-color: #6c757d; color: white; }
-        .test { background-color: #007bff; color: white; }
-        
-        button:disabled {
-            background-color: #ccc;
+
+        .tab.active {
+            color: #4299e1;
+            border-bottom-color: #4299e1;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        input[type="file"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="file"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
             cursor: not-allowed;
+            transform: none !important;
         }
-        
-        .status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
+
+        .status-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 15px;
             text-align: center;
         }
-        
-        .status.ready { background-color: #d4edda; }
-        .status.recording { background-color: #fff3cd; }
-        .status.processing { background-color: #cce7ff; }
-        
+
+        .status-ready {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-processing {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status-connected {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+
+        .output-section {
+            grid-column: 1 / -1;
+        }
+
         .output {
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 20px 0;
-            min-height: 200px;
-            white-space: pre-wrap;
-            font-family: monospace;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 300px;
+            max-height: 500px;
             overflow-y: auto;
-            max-height: 400px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .recording-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .recording-time {
+            font-weight: 600;
+            color: #e53e3e;
+            font-size: 1.1rem;
+        }
+
+        .realtime-messages {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        .file-preview {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .file-info {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4299e1, #3182ce);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 15px;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>🎙️ Audio Test - Basic Functions</h1>
-    
-    <div class="status ready" id="status">Ready to record</div>
-    
-    <div>
-        <button class="record" id="recordBtn" onclick="startRecording()">Start Recording</button>
-        <button class="stop" id="stopBtn" onclick="stopRecording()" disabled>Stop Recording</button>
-        <button class="test" onclick="testAPI()">Test API</button>
+    <div class="container">
+        <header>
+            <h1>🚀 Multimodality App Showcase</h1>
+            <p class="subtitle">Complete testing suite for all modalities and real-time capabilities</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Non-Realtime Testing Section -->
+            <div class="section">
+                <h2><span class="icon">📁</span>Non-Realtime Processing</h2>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('upload', 'text')">📝 Text</button>
+                    <button class="tab" onclick="switchTab('upload', 'audio')">🎵 Audio</button>
+                    <button class="tab" onclick="switchTab('upload', 'image')">🖼️ Image</button>
+                    <button class="tab" onclick="switchTab('upload', 'video')">🎬 Video</button>
+                    <button class="tab" onclick="switchTab('upload', 'multi')">🔗 Multi</button>
+                </div>
+
+                <!-- Text Tab -->
+                <div id="upload-text" class="tab-content active">
+                    <div class="form-group">
+                        <label for="textInput">Text Input:</label>
+                        <textarea id="textInput" placeholder="Enter your text here for analysis...">Hello, this is a test message for the multimodality app.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processText()">Analyze Text</button>
+                </div>
+
+                <!-- Audio Tab -->
+                <div id="upload-audio" class="tab-content">
+                    <div class="form-group">
+                        <label for="audioFile">Upload Audio File:</label>
+                        <input type="file" id="audioFile" accept="audio/*" onchange="previewFile('audio')">
+                        <div id="audioPreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="audioPrompt">Analysis Prompt:</label>
+                        <textarea id="audioPrompt" placeholder="What should I analyze about this audio?">Please transcribe this audio and provide insights about what you hear.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processAudio()">Process Audio</button>
+                    
+                    <div class="recording-controls">
+                        <button id="recordBtn" class="btn btn-danger" onclick="startRecording()">🎙️ Start Recording</button>
+                        <button id="stopBtn" class="btn btn-secondary" onclick="stopRecording()" disabled>⏹️ Stop</button>
+                        <span id="recordingTime" class="recording-time">00:00</span>
+                    </div>
+                </div>
+
+                <!-- Image Tab -->
+                <div id="upload-image" class="tab-content">
+                    <div class="form-group">
+                        <label for="imageFile">Upload Image File:</label>
+                        <input type="file" id="imageFile" accept="image/*" onchange="previewFile('image')">
+                        <div id="imagePreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="imagePrompt">Analysis Prompt:</label>
+                        <textarea id="imagePrompt" placeholder="What should I analyze about this image?">Please analyze this image and describe what you see in detail.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processImage()">Process Image</button>
+                </div>
+
+                <!-- Video Tab -->
+                <div id="upload-video" class="tab-content">
+                    <div class="form-group">
+                        <label for="videoFile">Upload Video File:</label>
+                        <input type="file" id="videoFile" accept="video/*" onchange="previewFile('video')">
+                        <div id="videoPreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoPrompt">Analysis Prompt:</label>
+                        <textarea id="videoPrompt" placeholder="What should I analyze about this video?">Please analyze this video and describe what you see, including any actions or notable details.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processVideo()">Process Video</button>
+                </div>
+
+                <!-- Multimodal Tab -->
+                <div id="upload-multi" class="tab-content">
+                    <div class="form-group">
+                        <label for="multiAudio">Audio File (optional):</label>
+                        <input type="file" id="multiAudio" accept="audio/*" onchange="previewFile('multiAudio')">
+                        <div id="multiAudioPreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="multiImage">Image File (optional):</label>
+                        <input type="file" id="multiImage" accept="image/*" onchange="previewFile('multiImage')">
+                        <div id="multiImagePreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="multiPrompt">Analysis Prompt:</label>
+                        <textarea id="multiPrompt" placeholder="What should I analyze about this multimodal content?">Please analyze the provided content and provide comprehensive insights.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processMultimodal()">Process Multimodal</button>
+                </div>
+            </div>
+
+            <!-- Real-time Testing Section -->
+            <div class="section">
+                <h2><span class="icon">⚡</span>Real-time WebSocket</h2>
+                
+                <div class="status-indicator" id="wsStatus">
+                    <span id="wsStatusText">Disconnected</span>
+                </div>
+
+                <div class="form-group">
+                    <button id="connectBtn" class="btn btn-primary" onclick="connectWebSocket()">Connect WebSocket</button>
+                    <button id="disconnectBtn" class="btn btn-secondary" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('realtime', 'text')">📝 Text</button>
+                    <button class="tab" onclick="switchTab('realtime', 'audio')">🎵 Audio</button>
+                    <button class="tab" onclick="switchTab('realtime', 'image')">🖼️ Image</button>
+                </div>
+
+                <!-- Realtime Text -->
+                <div id="realtime-text" class="tab-content active">
+                    <div class="form-group">
+                        <label for="realtimeTextInput">Send Text Message:</label>
+                        <textarea id="realtimeTextInput" placeholder="Type your message here...">Hello from the real-time interface!</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeText()" disabled id="sendTextBtn">Send Text</button>
+                </div>
+
+                <!-- Realtime Audio -->
+                <div id="realtime-audio" class="tab-content">
+                    <div class="form-group">
+                        <label for="realtimeAudioFile">Upload Audio:</label>
+                        <input type="file" id="realtimeAudioFile" accept="audio/*" disabled>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeAudio()" disabled id="sendAudioBtn">Send Audio</button>
+                    
+                    <div class="recording-controls">
+                        <button id="realtimeRecordBtn" class="btn btn-danger" onclick="startRealtimeRecording()" disabled>🎙️ Live Record</button>
+                        <button id="realtimeStopBtn" class="btn btn-secondary" onclick="stopRealtimeRecording()" disabled>⏹️ Stop</button>
+                    </div>
+                </div>
+
+                <!-- Realtime Image -->
+                <div id="realtime-image" class="tab-content">
+                    <div class="form-group">
+                        <label for="realtimeImageFile">Upload Image:</label>
+                        <input type="file" id="realtimeImageFile" accept="image/*" disabled>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeImage()" disabled id="sendImageBtn">Send Image</button>
+                </div>
+
+                <div class="realtime-messages" id="realtimeMessages">
+                    WebSocket messages will appear here...
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="section output-section">
+            <h2><span class="icon">📊</span>Results & Output</h2>
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="output" id="output">
+                🚀 Multimodality App Showcase - Ready to test all functionality!
+                
+                📋 Available Tests:
+                ================
+                
+                📁 Non-Realtime Processing:
+                • Text Analysis - Direct text processing
+                • Audio Upload/Recording - File upload or live recording
+                • Image Analysis - Image upload and analysis  
+                • Video Analysis - Video upload and processing
+                • Multimodal - Combined audio + image processing
+                
+                ⚡ Real-time WebSocket:
+                • Live text messaging
+                • Real-time audio streaming
+                • Live image processing
+                • Bidirectional communication
+                
+                🔧 System Status:
+                • Backend: Loading...
+                • WebSocket: Disconnected
+                • All modalities supported
+                
+                Select a test above to begin!
+            </div>
+        </div>
     </div>
-    
-    <p>Duration: <span id="duration">0s</span></p>
-    
-    <div class="output" id="output">Ready to test basic audio functions...</div>
 
     <script>
+        // Global variables
         let mediaRecorder;
         let recordedChunks = [];
-        let startTime;
-        let durationInterval;
-        
+        let recordingStartTime;
+        let recordingInterval;
+        let websocket = null;
+        let isConnected = false;
+        let realtimeMediaRecorder;
+        let realtimeRecordedChunks = [];
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSystemStatus();
+        });
+
+        // Tab switching functionality
+        function switchTab(section, tabName) {
+            // Hide all tab contents in the section
+            const tabContents = document.querySelectorAll(`#${section}-text, #${section}-audio, #${section}-image, #${section}-video, #${section}-multi`);
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all tabs in the section
+            const tabs = document.querySelectorAll(`[onclick*="${section}"]`);
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab content
+            const selectedContent = document.getElementById(`${section}-${tabName}`);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // System status check
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                updateOutput(`✅ System Status: ${status.message}\n🔧 Backend: ${status.backend}\n`);
+            } catch (error) {
+                updateOutput(`❌ System Status Error: ${error.message}\n`);
+            }
+        }
+
+        // File preview functionality
+        function previewFile(type) {
+            const fileInput = document.getElementById(`${type}File` || `${type}`);
+            const previewDiv = document.getElementById(`${type}Preview`);
+            
+            if (!fileInput || !previewDiv) return;
+            
+            const file = fileInput.files[0];
+            if (file) {
+                previewDiv.style.display = 'block';
+                previewDiv.innerHTML = `
+                    <div class="file-info">
+                        <strong>📄 ${file.name}</strong><br>
+                        📏 Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                        🏷️ Type: ${file.type}
+                    </div>
+                `;
+            } else {
+                previewDiv.style.display = 'none';
+            }
+        }
+
+        // Output management
+        function updateOutput(message, clear = false) {
+            const output = document.getElementById('output');
+            if (clear) {
+                output.textContent = '';
+            }
+            output.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function showProgress() {
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('progressFill').style.width = '100%';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressBar').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        // Non-realtime processing functions
+        async function processText() {
+            const text = document.getElementById('textInput').value;
+            if (!text.trim()) {
+                updateOutput('❌ Please enter some text to analyze.');
+                return;
+            }
+
+            updateOutput('📝 Processing text input...', true);
+            showProgress();
+
+            try {
+                // Using the LLM directly via a simple endpoint (we'll need to create this)
+                const response = await fetch('/api/process-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        prompt: 'Please analyze this text and provide insights.'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Processing failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                updateOutput(`✅ Text Analysis Complete:\n${result.analysis || result.message}\n`);
+            } catch (error) {
+                updateOutput(`❌ Text Processing Error: ${error.message}\n`);
+            } finally {
+                hideProgress();
+            }
+        }
+
+        async function processAudio() {
+            const fileInput = document.getElementById('audioFile');
+            const prompt = document.getElementById('audioPrompt').value;
+            
+            if (!fileInput.files[0]) {
+                updateOutput('❌ Please select an audio file.');
+                return;
+            }
+
+            updateOutput('🎵 Processing audio file...', true);
+            showProgress();
+
+            try {
+                const formData = new FormData();
+                formData.append('audio', fileInput.files[0]);
+                formData.append('prompt', prompt);
+
+                const response = await fetch('/api/process-audio-unified', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Processing failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                updateOutput(`✅ Audio Processing Complete:\n${result.transcription}\n`);
+            } catch (error) {
+                updateOutput(`❌ Audio Processing Error: ${error.message}\n`);
+            } finally {
+                hideProgress();
+            }
+        }
+
+        async function processImage() {
+            const fileInput = document.getElementById('imageFile');
+            const prompt = document.getElementById('imagePrompt').value;
+            
+            if (!fileInput.files[0]) {
+                updateOutput('❌ Please select an image file.');
+                return;
+            }
+
+            updateOutput('🖼️ Processing image file...', true);
+            showProgress();
+
+            try {
+                const formData = new FormData();
+                formData.append('image', fileInput.files[0]);
+                formData.append('prompt', prompt);
+
+                const response = await fetch('/api/process-image-unified', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Processing failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                updateOutput(`✅ Image Processing Complete:\n${result.analysis}\n`);
+            } catch (error) {
+                updateOutput(`❌ Image Processing Error: ${error.message}\n`);
+            } finally {
+                hideProgress();
+            }
+        }
+
+        async function processVideo() {
+            const fileInput = document.getElementById('videoFile');
+            const prompt = document.getElementById('videoPrompt').value;
+            
+            if (!fileInput.files[0]) {
+                updateOutput('❌ Please select a video file.');
+                return;
+            }
+
+            updateOutput('🎬 Processing video file...', true);
+            showProgress();
+
+            try {
+                const formData = new FormData();
+                formData.append('video', fileInput.files[0]);
+                formData.append('prompt', prompt);
+
+                const response = await fetch('/api/process-video-unified', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Processing failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                updateOutput(`✅ Video Processing Complete:\n${result.analysis}\n`);
+            } catch (error) {
+                updateOutput(`❌ Video Processing Error: ${error.message}\n`);
+            } finally {
+                hideProgress();
+            }
+        }
+
+        async function processMultimodal() {
+            const audioInput = document.getElementById('multiAudio');
+            const imageInput = document.getElementById('multiImage');
+            const prompt = document.getElementById('multiPrompt').value;
+            
+            if (!audioInput.files[0] && !imageInput.files[0]) {
+                updateOutput('❌ Please select at least one file (audio or image).');
+                return;
+            }
+
+            updateOutput('🔗 Processing multimodal content...', true);
+            showProgress();
+
+            try {
+                const formData = new FormData();
+                if (audioInput.files[0]) {
+                    formData.append('audio', audioInput.files[0]);
+                }
+                if (imageInput.files[0]) {
+                    formData.append('image', imageInput.files[0]);
+                }
+                formData.append('prompt', prompt);
+
+                const response = await fetch('/api/process-multimodal-unified', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Processing failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                updateOutput(`✅ Multimodal Processing Complete:\n${result.analysis}\n`);
+            } catch (error) {
+                updateOutput(`❌ Multimodal Processing Error: ${error.message}\n`);
+            } finally {
+                hideProgress();
+            }
+        }
+
+        // Recording functionality
         async function startRecording() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                document.getElementById('status').textContent = 'Recording...';
-                document.getElementById('status').className = 'status recording';
-                document.getElementById('recordBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
                 
                 recordedChunks = [];
                 mediaRecorder = new MediaRecorder(stream);
@@ -95,79 +772,310 @@
                 
                 mediaRecorder.onstop = function() {
                     stream.getTracks().forEach(track => track.stop());
-                    processAudio();
+                    processRecordedAudio();
                 };
                 
                 mediaRecorder.start();
-                startTime = Date.now();
+                recordingStartTime = Date.now();
                 
-                durationInterval = setInterval(() => {
-                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                    document.getElementById('duration').textContent = `${elapsed}s`;
-                }, 1000);
+                document.getElementById('recordBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
                 
-                document.getElementById('output').textContent += '\nRecording started...\n';
+                recordingInterval = setInterval(updateRecordingTime, 1000);
+                updateOutput('🎙️ Recording started...\n');
                 
             } catch (error) {
-                document.getElementById('status').textContent = 'Error accessing microphone';
-                document.getElementById('output').textContent += `\nError: ${error.message}\n`;
+                updateOutput(`❌ Recording Error: ${error.message}\n`);
             }
         }
-        
+
         function stopRecording() {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-                clearInterval(durationInterval);
+                clearInterval(recordingInterval);
                 
-                document.getElementById('status').textContent = 'Processing...';
-                document.getElementById('status').className = 'status processing';
                 document.getElementById('recordBtn').disabled = false;
                 document.getElementById('stopBtn').disabled = true;
+                document.getElementById('recordingTime').textContent = '00:00';
                 
-                document.getElementById('output').textContent += 'Recording stopped, processing...\n';
+                updateOutput('⏹️ Recording stopped, processing...\n');
             }
         }
-        
-        async function processAudio() {
+
+        function updateRecordingTime() {
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('recordingTime').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        async function processRecordedAudio() {
+            const audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+            const prompt = document.getElementById('audioPrompt').value;
+            
+            showProgress();
+
             try {
-                const audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
-                
                 const formData = new FormData();
                 formData.append('audio', audioBlob, 'recording.webm');
-                formData.append('prompt', 'Please transcribe this audio.');
-                
+                formData.append('prompt', prompt);
+
                 const response = await fetch('/api/process-audio-unified', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`Processing failed: ${response.status}`);
                 }
-                
+
                 const result = await response.json();
-                
-                document.getElementById('status').textContent = 'Complete';
-                document.getElementById('status').className = 'status ready';
-                
-                document.getElementById('output').textContent += '\n--- RESULT ---\n';
-                document.getElementById('output').textContent += result.transcription + '\n';
-                document.getElementById('output').textContent += `Status: ${result.message}\n`;
-                
+                updateOutput(`✅ Recording Processing Complete:\n${result.transcription}\n`);
             } catch (error) {
-                document.getElementById('status').textContent = 'Processing failed';
-                document.getElementById('output').textContent += `\nError: ${error.message}\n`;
+                updateOutput(`❌ Recording Processing Error: ${error.message}\n`);
+            } finally {
+                hideProgress();
             }
         }
-        
-        async function testAPI() {
-            try {
-                const response = await fetch('/api/status');
-                const status = await response.json();
-                document.getElementById('output').textContent += `\nAPI Test: ${status.message}\n`;
-            } catch (error) {
-                document.getElementById('output').textContent += `\nAPI Test Failed: ${error.message}\n`;
+
+        // WebSocket functionality
+        function connectWebSocket() {
+            const wsUrl = `ws://${window.location.host}/ws/realtime`;
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function(event) {
+                isConnected = true;
+                updateWebSocketStatus('Connected', 'connected');
+                updateRealtimeMessage('✅ WebSocket connected successfully');
+                enableRealtimeControls(true);
+            };
+            
+            websocket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                updateRealtimeMessage(`📨 Received: ${JSON.stringify(message, null, 2)}`);
+                
+                if (message.type === 'response.done' && message.response) {
+                    const output = message.response.output?.[0]?.content?.[0]?.text || 'No response text';
+                    updateOutput(`🤖 Real-time Response: ${output}\n`);
+                }
+            };
+            
+            websocket.onclose = function(event) {
+                isConnected = false;
+                updateWebSocketStatus('Disconnected', 'ready');
+                updateRealtimeMessage('❌ WebSocket disconnected');
+                enableRealtimeControls(false);
+            };
+            
+            websocket.onerror = function(error) {
+                updateRealtimeMessage(`❌ WebSocket error: ${error}`);
+                updateOutput(`❌ WebSocket Error: ${error}\n`);
+            };
+        }
+
+        function disconnectWebSocket() {
+            if (websocket) {
+                websocket.close();
             }
+        }
+
+        function updateWebSocketStatus(text, status) {
+            const statusElement = document.getElementById('wsStatusText');
+            const statusContainer = document.getElementById('wsStatus');
+            
+            statusElement.textContent = text;
+            statusContainer.className = `status-indicator status-${status}`;
+            
+            document.getElementById('connectBtn').disabled = isConnected;
+            document.getElementById('disconnectBtn').disabled = !isConnected;
+        }
+
+        function enableRealtimeControls(enabled) {
+            const controls = [
+                'sendTextBtn', 'sendAudioBtn', 'sendImageBtn',
+                'realtimeAudioFile', 'realtimeImageFile',
+                'realtimeRecordBtn'
+            ];
+            
+            controls.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.disabled = !enabled;
+                }
+            });
+        }
+
+        function updateRealtimeMessage(message) {
+            const messagesDiv = document.getElementById('realtimeMessages');
+            messagesDiv.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Real-time sending functions
+        function sendRealtimeText() {
+            const text = document.getElementById('realtimeTextInput').value;
+            if (!text.trim() || !isConnected) return;
+            
+            const message = {
+                event_id: `text_${Date.now()}`,
+                type: 'conversation.item.create',
+                item: {
+                    id: `item_${Date.now()}`,
+                    type: 'message',
+                    role: 'user',
+                    content: [{ type: 'text', text: text }]
+                }
+            };
+            
+            websocket.send(JSON.stringify(message));
+            updateRealtimeMessage(`📤 Sent text: ${text}`);
+            
+            // Request response
+            setTimeout(() => {
+                const responseRequest = {
+                    event_id: `response_${Date.now()}`,
+                    type: 'response.create'
+                };
+                websocket.send(JSON.stringify(responseRequest));
+            }, 100);
+        }
+
+        async function sendRealtimeAudio() {
+            const fileInput = document.getElementById('realtimeAudioFile');
+            if (!fileInput.files[0] || !isConnected) return;
+            
+            const file = fileInput.files[0];
+            const arrayBuffer = await file.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            
+            const message = {
+                event_id: `audio_${Date.now()}`,
+                type: 'conversation.item.create',
+                item: {
+                    id: `item_${Date.now()}`,
+                    type: 'message',
+                    role: 'user',
+                    content: [{ type: 'audio', audio: base64 }]
+                }
+            };
+            
+            websocket.send(JSON.stringify(message));
+            updateRealtimeMessage(`📤 Sent audio file: ${file.name}`);
+            
+            // Request response
+            setTimeout(() => {
+                const responseRequest = {
+                    event_id: `response_${Date.now()}`,
+                    type: 'response.create'
+                };
+                websocket.send(JSON.stringify(responseRequest));
+            }, 100);
+        }
+
+        async function sendRealtimeImage() {
+            const fileInput = document.getElementById('realtimeImageFile');
+            if (!fileInput.files[0] || !isConnected) return;
+            
+            const file = fileInput.files[0];
+            const arrayBuffer = await file.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            
+            const message = {
+                event_id: `image_${Date.now()}`,
+                type: 'conversation.item.create',
+                item: {
+                    id: `item_${Date.now()}`,
+                    type: 'message',
+                    role: 'user',
+                    content: [{ type: 'image', image: base64 }]
+                }
+            };
+            
+            websocket.send(JSON.stringify(message));
+            updateRealtimeMessage(`📤 Sent image file: ${file.name}`);
+            
+            // Request response
+            setTimeout(() => {
+                const responseRequest = {
+                    event_id: `response_${Date.now()}`,
+                    type: 'response.create'
+                };
+                websocket.send(JSON.stringify(responseRequest));
+            }, 100);
+        }
+
+        // Real-time recording
+        async function startRealtimeRecording() {
+            if (!isConnected) return;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                realtimeRecordedChunks = [];
+                realtimeMediaRecorder = new MediaRecorder(stream);
+                
+                realtimeMediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        realtimeRecordedChunks.push(event.data);
+                    }
+                };
+                
+                realtimeMediaRecorder.onstop = function() {
+                    stream.getTracks().forEach(track => track.stop());
+                    sendRealtimeRecording();
+                };
+                
+                realtimeMediaRecorder.start();
+                
+                document.getElementById('realtimeRecordBtn').disabled = true;
+                document.getElementById('realtimeStopBtn').disabled = false;
+                
+                updateRealtimeMessage('🎙️ Real-time recording started...');
+                
+            } catch (error) {
+                updateRealtimeMessage(`❌ Recording Error: ${error.message}`);
+            }
+        }
+
+        function stopRealtimeRecording() {
+            if (realtimeMediaRecorder && realtimeMediaRecorder.state === 'recording') {
+                realtimeMediaRecorder.stop();
+                
+                document.getElementById('realtimeRecordBtn').disabled = false;
+                document.getElementById('realtimeStopBtn').disabled = true;
+                
+                updateRealtimeMessage('⏹️ Real-time recording stopped, sending...');
+            }
+        }
+
+        async function sendRealtimeRecording() {
+            const audioBlob = new Blob(realtimeRecordedChunks, { type: 'audio/webm' });
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            
+            const message = {
+                event_id: `live_audio_${Date.now()}`,
+                type: 'conversation.item.create',
+                item: {
+                    id: `item_${Date.now()}`,
+                    type: 'message',
+                    role: 'user',
+                    content: [{ type: 'audio', audio: base64 }]
+                }
+            };
+            
+            websocket.send(JSON.stringify(message));
+            updateRealtimeMessage('📤 Sent live recording');
+            
+            // Request response
+            setTimeout(() => {
+                const responseRequest = {
+                    event_id: `response_${Date.now()}`,
+                    type: 'response.create'
+                };
+                websocket.send(JSON.stringify(responseRequest));
+            }, 100);
         }
     </script>
 </body>

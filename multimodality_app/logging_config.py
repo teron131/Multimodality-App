@@ -17,17 +17,17 @@ def setup_logging() -> logging.Logger:
     logger.setLevel(logging.DEBUG if DEBUG_MODE else logging.INFO)
     logger.handlers.clear()
 
-    # Console handler
+    # Console handler with improved formatting
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     console.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.addHandler(console)
 
-    # File handler with rotation
-    file_handler = logging.handlers.RotatingFileHandler(LOGS_DIR / "app.log", maxBytes=10 * 1024 * 1024, backupCount=5)  # 10MB
-    file_handler.setLevel(logging.DEBUG if DEBUG_MODE else logging.INFO)
-    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"))
-    logger.addHandler(file_handler)
+    # Last run file handler (overwrites each time)
+    last_run_handler = logging.FileHandler(LOGS_DIR / "last_run.log", mode="w")  # Overwrite mode
+    last_run_handler.setLevel(logging.DEBUG if DEBUG_MODE else logging.INFO)
+    last_run_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"))
+    logger.addHandler(last_run_handler)
 
     return logger
 

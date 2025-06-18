@@ -1,11 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from ..config import GOOGLE_API_KEY, STATIC_DIR
 from ..llm import get_llm_info, get_response
 from ..schema import ConfigResponse, HealthResponse, StatusResponse
 
 router = APIRouter()
+
+
+class TextProcessRequest(BaseModel):
+    text: str
+    prompt: str = "Please analyze this text and provide insights."
 
 
 @router.get("/", response_class=FileResponse)
@@ -79,3 +85,18 @@ async def health_check():
             backend="gemini",
             details={"has_api_key": backend_info.get("has_api_key", False)},
         )
+
+
+@router.post("/api/process-text")
+async def process_text(request: TextProcessRequest):
+    """Process text input directly with LLM."""
+    try:
+        # Combine prompt and text
+        full_prompt = f"{request.prompt}\n\nText to analyze:\n{request.text}"
+
+        # Get response from LLM
+        response = get_response(text_input=full_prompt)
+
+        return {"status": "success", "analysis": response.content, "message": "Text analysis completed"}
+    except Exception as e:
+        return {"status": "error", "message": f"Text processing failed: {str(e)}"}

@@ -23,7 +23,11 @@ def encode_video(video_path: str | Path) -> str:
 
     # Always optimize video for Gemini API
     try:
-        out, err = ffmpeg.input(str(video_path)).output("pipe:", format="mp4", vcodec="libx264", acodec="aac", preset="medium", crf=28, movflags="frag_keyframe+empty_moov").run(capture_stdout=True, capture_stderr=True)  # H.264 codec for wide compatibility  # AAC audio codec  # Balance between compression and speed  # Constant Rate Factor for good quality/size balance  # Optimize for streaming
+        out, err = (
+            ffmpeg.input(str(video_path))
+            .output("pipe:", format="mp4", vcodec="libx264", acodec="aac", preset="medium", crf=28, movflags="frag_keyframe+empty_moov")
+            .run(capture_stdout=True, capture_stderr=True)
+        )  # H.264 codec for wide compatibility  # AAC audio codec  # Balance between compression and speed  # Constant Rate Factor for good quality/size balance  # Optimize for streaming
         video_data = out
     except ffmpeg.Error as e:
         raise RuntimeError(f"FFmpeg video optimization failed: {e.stderr.decode() if e.stderr else str(e)}") from e
@@ -79,9 +83,9 @@ def process_uploaded_video(video_data: bytes, filename: str) -> tuple[str, dict]
         video_info = get_video_info(temp_file)
 
         # Optimize and convert to base64
-        video_base64 = encode_video(temp_file)
+        video_b64 = encode_video(temp_file)
 
-        return video_base64, video_info
+        return video_b64, video_info
 
     finally:
         # Clean up temp file

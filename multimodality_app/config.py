@@ -31,6 +31,7 @@ STATIC_DIR = Path(__file__).parent
 # Processing Configuration
 DEFAULT_AUDIO_PROMPT = "Please transcribe this audio recording and provide any additional insights about what you hear."
 DEFAULT_IMAGE_PROMPT = "Please analyze this image and describe what you see."
+DEFAULT_VIDEO_PROMPT = "Please analyze this video and describe what you see, including any actions, scenes, or notable details."
 DEFAULT_MULTIMODAL_PROMPT = "Please analyze this content and provide insights."
 DEFAULT_MAX_TOKENS = 1000000
 

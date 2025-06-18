@@ -566,6 +566,11 @@ dev = [
     { name = "rich" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "websockets" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.12" },
@@ -583,6 +588,9 @@ requires-dist = [
     { name = "websockets", specifier = ">=15.0.1" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "websockets", specifier = ">=15.0.1" }]
 
 [[package]]
 name = "nest-asyncio"

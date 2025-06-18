@@ -4,16 +4,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+# Import logging configuration first to set up logging
+from . import logging_config  # noqa: F401
 from .config import APP_NAME, SERVER_HOST, SERVER_PORT, STATIC_DIR
-from .routes import audio_router, image_router, main_router, multimodal_router
+from .routes import (
+    audio_router,
+    image_router,
+    main_router,
+    multimodal_router,
+    realtime_router,
+    video_router,
+)
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
-# FastAPI app
 app = FastAPI()
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +35,9 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static"
 app.include_router(main_router)
 app.include_router(audio_router)
 app.include_router(image_router)
+app.include_router(video_router)
 app.include_router(multimodal_router)
+app.include_router(realtime_router)
 
 logger.info(f"🚀 {APP_NAME} server initialized")
 
@@ -38,7 +46,10 @@ def main() -> None:
     """Main entry point for running the server."""
     import uvicorn
 
-    logger.info(f"Starting server on {SERVER_HOST}:{SERVER_PORT}")
+    logger.info(f"🚀 Starting server on http://{SERVER_HOST}:{SERVER_PORT}")
+    logger.info(f"📋 Press Ctrl+C to stop")
+    logger.info(f"📁 Logs will be written to: logs/last_run.log")
+
     uvicorn.run("multimodality_app.server:app", host=SERVER_HOST, port=SERVER_PORT, reload=True)
 
 
