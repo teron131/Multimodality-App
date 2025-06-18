@@ -26,7 +26,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 PROJECT_ROOT = Path(__file__).parent.parent
 AUDIO_DIR = PROJECT_ROOT / "audio"
 IMAGE_DIR = PROJECT_ROOT / "image"
-STATIC_DIR = Path(__file__).parent
+STATIC_DIR = Path(__file__).parent / "static"
 
 # Processing Configuration
 DEFAULT_AUDIO_PROMPT = "Please transcribe this audio recording and provide any additional insights about what you hear."

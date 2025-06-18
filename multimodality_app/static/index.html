@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodality App - Complete Showcase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            font-size: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            color: #718096;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            color: #4299e1;
+            border-bottom-color: #4299e1;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        input[type="file"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="file"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .status-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .status-ready {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-processing {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status-connected {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+
+        .output-section {
+            grid-column: 1 / -1;
+        }
+        
+        .output {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .recording-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .recording-time {
+            font-weight: 600;
+            color: #e53e3e;
+            font-size: 1.1rem;
+        }
+
+        .realtime-messages {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        .file-preview {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .file-info {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4299e1, #3182ce);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Multimodality App Showcase</h1>
+            <p class="subtitle">Complete testing suite for all modalities and real-time capabilities</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Non-Realtime Testing Section -->
+            <div class="section">
+                <h2><span class="icon">📁</span>Non-Realtime Processing</h2>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('upload', 'text')">📝 Text</button>
+                    <button class="tab" onclick="switchTab('upload', 'audio')">🎵 Audio</button>
+                    <button class="tab" onclick="switchTab('upload', 'image')">🖼️ Image</button>
+                    <button class="tab" onclick="switchTab('upload', 'video')">🎬 Video</button>
+                    <button class="tab" onclick="switchTab('upload', 'multi')">🔗 Multi</button>
+                </div>
+
+                <!-- Text Tab -->
+                <div id="upload-text" class="tab-content active">
+                    <div class="form-group">
+                        <label for="textInput">Text Input:</label>
+                        <textarea id="textInput" placeholder="Enter your text here for analysis...">Hello, this is a test message for the multimodality app.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processText()">Analyze Text</button>
+                </div>
+
+                <!-- Audio Tab -->
+                <div id="upload-audio" class="tab-content">
+                    <div class="form-group">
+                        <label for="audioFile">Upload Audio File:</label>
+                        <input type="file" id="audioFile" accept="audio/*" onchange="showFilePreview(this, 'audioPreview')">
+                        <div id="audioPreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="audioPrompt">Analysis Prompt:</label>
+                        <textarea id="audioPrompt" placeholder="What should I analyze about this audio?">Transcribe this audio and provide insights about what you hear.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processAudio()">Process Audio</button>
+                    
+                    <div class="recording-controls">
+                        <button id="recordBtn" class="btn btn-danger" onclick="startRecording()">🎙️ Start Recording</button>
+                        <button id="stopBtn" class="btn btn-secondary" onclick="stopRecording()" disabled>⏹️ Stop</button>
+                        <span id="recordingTime" class="recording-time">00:00</span>
+                    </div>
+                </div>
+
+                <!-- Image Tab -->
+                <div id="upload-image" class="tab-content">
+                    <div class="form-group">
+                        <label for="imageFile">Upload Image File:</label>
+                        <input type="file" id="imageFile" accept="image/*" onchange="showFilePreview(this, 'imagePreview')">
+                        <div id="imagePreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="imagePrompt">Analysis Prompt:</label>
+                        <textarea id="imagePrompt" placeholder="What should I analyze about this image?">Analyze this image and describe what you see in detail.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processImage()">Process Image</button>
+                </div>
+
+                <!-- Video Tab -->
+                <div id="upload-video" class="tab-content">
+                    <div class="form-group">
+                        <label for="videoFile">Upload Video File:</label>
+                        <input type="file" id="videoFile" accept="video/*" onchange="showFilePreview(this, 'videoPreview')">
+                        <div id="videoPreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoPrompt">Analysis Prompt:</label>
+                        <textarea id="videoPrompt" placeholder="What should I analyze about this video?">Analyze this video and describe what you see, including any actions or notable details.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processVideo()">Process Video</button>
+                </div>
+
+                <!-- Multimodal Tab -->
+                <div id="upload-multi" class="tab-content">
+                    <div class="form-group">
+                        <label for="multiAudio">Audio File (optional):</label>
+                        <input type="file" id="multiAudio" accept="audio/*" onchange="showFilePreview(this, 'multiAudioPreview')">
+                        <div id="multiAudioPreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="multiImage">Image File (optional):</label>
+                        <input type="file" id="multiImage" accept="image/*" onchange="showFilePreview(this, 'multiImagePreview')">
+                        <div id="multiImagePreview" class="file-preview" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="multiPrompt">Analysis Prompt:</label>
+                        <textarea id="multiPrompt" placeholder="What should I analyze about this multimodal content?">Analyze the provided content and provide comprehensive insights.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processMultimodal()">Process Multimodal</button>
+                </div>
+            </div>
+
+            <!-- Real-time Testing Section -->
+            <div class="section">
+                <h2><span class="icon">⚡</span>Real-time WebSocket</h2>
+                
+                <div class="status-indicator" id="wsStatus">
+                    <span id="wsStatusText">Disconnected</span>
+                </div>
+
+                <div class="form-group">
+                    <button id="connectBtn" class="btn btn-primary" onclick="connectWebSocket()">Connect WebSocket</button>
+                    <button id="disconnectBtn" class="btn btn-secondary" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('realtime', 'text')">📝 Text</button>
+                    <button class="tab" onclick="switchTab('realtime', 'audio')">🎵 Audio</button>
+                    <button class="tab" onclick="switchTab('realtime', 'image')">🖼️ Image</button>
+                    <button class="tab" onclick="switchTab('realtime', 'video')">🎬 Video</button>
+                </div>
+
+                <!-- Realtime Text -->
+                <div id="realtime-text" class="tab-content active">
+                    <div class="form-group">
+                        <label for="realtimeTextInput">Send Text Message:</label>
+                        <textarea id="realtimeTextInput" placeholder="Type your message here...">Hello from the real-time interface!</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeText()" disabled id="sendTextBtn">Send Text</button>
+                </div>
+
+                <!-- Realtime Audio -->
+                <div id="realtime-audio" class="tab-content">
+                    <div class="form-group">
+                        <label for="realtimeAudioFile">Upload Audio:</label>
+                        <input type="file" id="realtimeAudioFile" accept="audio/*" disabled>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeAudio()" disabled id="sendAudioBtn">Send Audio</button>
+                    
+                    <div class="recording-controls">
+                        <button id="realtimeRecordBtn" class="btn btn-danger" onclick="startRealtimeRecording()" disabled>🎙️ Live Record</button>
+                        <button id="realtimeStopBtn" class="btn btn-secondary" onclick="stopRealtimeRecording()" disabled>⏹️ Stop</button>
+                    </div>
+                </div>
+
+                <!-- Realtime Image -->
+                <div id="realtime-image" class="tab-content">
+                    <div class="form-group">
+                        <label for="realtimeImageFile">Upload Image:</label>
+                        <input type="file" id="realtimeImageFile" accept="image/*" disabled>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeImage()" disabled id="sendImageBtn">Send Image</button>
+                </div>
+
+                <!-- Realtime Video -->
+                <div id="realtime-video" class="tab-content">
+                    <div class="form-group">
+                        <label for="realtimeVideoFile">Upload Video:</label>
+                        <input type="file" id="realtimeVideoFile" accept="video/*" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="realtimeVideoPrompt">Analysis Prompt:</label>
+                        <textarea id="realtimeVideoPrompt" placeholder="What should I analyze about this video?" disabled>Analyze this video and describe what you see, including any actions or notable details.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeVideo()" disabled id="sendVideoBtn">Send Video</button>
+                    
+                    <div style="margin-top: 15px;">
+                        <h4>🖥️ Screen Sharing</h4>
+                        <button class="btn btn-secondary" onclick="startScreenShare()" disabled id="videoStreamBtn">📺 Share Screen</button>
+                        <button class="btn btn-danger" onclick="stopScreenShare()" disabled id="videoDisconnectBtn">⏹️ Stop Sharing</button>
+                        <div id="videoStreamStatus" class="status-indicator" style="display: none;"></div>
+                        <div style="margin-top: 10px;">
+                            <label for="screenAnalysisPrompt">Screen Analysis Prompt:</label>
+                            <textarea id="screenAnalysisPrompt" placeholder="What should I analyze about your screen?" style="width: 100%; height: 60px; margin-top: 5px;">Describe what you see on the screen and any notable changes or activities.</textarea>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label for="frameInterval">Analysis Interval:</label>
+                            <select id="frameInterval" style="margin-left: 10px;">
+                                <option value="1000">Every 1 second (High frequency)</option>
+                                <option value="3000" selected>Every 3 seconds (Optimal)</option>
+                                <option value="5000">Every 5 seconds (Balanced)</option>
+                                <option value="10000">Every 10 seconds (Conservative)</option>
+                                <option value="30000">Every 30 seconds (Minimal)</option>
+                                <option value="60000">Every 1 minute (Monitoring)</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label for="imageQuality">Image Quality:</label>
+                            <select id="imageQuality" style="margin-left: 10px;">
+                                <option value="0.6">High compression (smaller files)</option>
+                                <option value="0.75" selected>Balanced (recommended)</option>
+                                <option value="0.85">High quality (larger files)</option>
+                                <option value="0.95">Maximum quality</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label for="changeThreshold">Change Detection Sensitivity:</label>
+                            <select id="changeThreshold" style="margin-left: 10px;">
+                                <option value="1">Very sensitive (1% change)</option>
+                                <option value="3">Sensitive (3% change)</option>
+                                <option value="5" selected>Balanced (5% change)</option>
+                                <option value="10">Conservative (10% change)</option>
+                                <option value="20">Very conservative (20% change)</option>
+                                <option value="0">Disabled (analyze all frames)</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button class="btn btn-secondary" onclick="testFrameCapture()" disabled id="testCaptureBtn" style="font-size: 0.9em;">🧪 Test Frame Capture</button>
+                            <button class="btn btn-secondary" onclick="testScreenShareSupport()" id="testSupportBtn" style="font-size: 0.9em; margin-left: 5px;">🔍 Check Support</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="realtime-messages" id="realtimeMessages">
+                    WebSocket messages will appear here...
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="section output-section">
+            <h2><span class="icon">📊</span>Results & Output</h2>
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="output" id="output">
+                🚀 Multimodality App Showcase - Ready to test all functionality!
+                
+                📋 Available Tests:
+                ================
+                
+                📁 Non-Realtime Processing:
+                • Text Analysis - Direct text processing
+                • Audio Upload/Recording - File upload or live recording
+                • Image Analysis - Image upload and analysis  
+                • Video Analysis - Video upload and processing
+                • Multimodal - Combined audio + image processing
+                
+                ⚡ Real-time WebSocket:
+                • Live text messaging
+                • Real-time audio streaming
+                • Live image processing
+                • Real-time video analysis
+                • Live screen sharing & analysis
+                • Bidirectional communication
+                
+                🔧 System Status:
+                • Backend: Loading...
+                • WebSocket: Disconnected
+                • All modalities supported
+                
+                Select a test above to begin!
+            </div>
+        </div>
+    </div>
+
+    <!-- Import JavaScript modules -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/file-processor.js"></script>
+    <script src="/static/js/recording-manager.js"></script>
+    <script src="/static/js/websocket-manager.js"></script>
+    <script src="/static/js/screen-sharing.js"></script>
+
+    <script>
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSystemStatus();
+            
+            // Add event listeners for file inputs
+            const realtimeAudioFile = document.getElementById('realtimeAudioFile');
+            const realtimeImageFile = document.getElementById('realtimeImageFile');
+            const realtimeVideoFile = document.getElementById('realtimeVideoFile');
+            
+            if (realtimeAudioFile) {
+                realtimeAudioFile.addEventListener('change', function() {
+                    const file = this.files[0];
+                    if (file) {
+                        updateRealtimeMessage(`🎵 Audio file selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                    }
+                });
+            }
+            
+            if (realtimeImageFile) {
+                realtimeImageFile.addEventListener('change', function() {
+                    const file = this.files[0];
+                    if (file) {
+                        updateRealtimeMessage(`🖼️ Image file selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                    }
+                });
+            }
+            
+            if (realtimeVideoFile) {
+                realtimeVideoFile.addEventListener('change', function() {
+                    const file = this.files[0];
+                    if (file) {
+                        updateRealtimeMessage(`🎬 Video file selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB, ${file.type})`);
+                    }
+                });
+            }
+        });
+
+        // Tab switching functionality
+        function switchTab(section, tabName) {
+            // Hide all tab contents in the section
+            const tabContents = document.querySelectorAll(`#${section}-text, #${section}-audio, #${section}-image, #${section}-video, #${section}-multi`);
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all tabs in the section
+            const tabs = document.querySelectorAll(`[onclick*="${section}"]`);
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab content
+            const selectedContent = document.getElementById(`${section}-${tabName}`);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // System status check
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                updateOutput(`✅ System Status: ${status.message}\n🔧 Backend: ${status.backend}\n`);
+            } catch (error) {
+                updateOutput(`❌ System Status Error: ${error.message}\n`);
+            }
+        }
+
+        // File preview functionality
+        function showFilePreview(input, previewId) {
+            const previewDiv = document.getElementById(previewId);
+            const file = input.files[0];
+            
+            if (file) {
+                previewDiv.style.display = 'block';
+                previewDiv.innerHTML = `
+                    <div class="file-preview">
+                        📄 Selected: ${file.name}<br>
+                        📏 Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                        🏷️ Type: ${file.type}
+                    </div>
+                `;
+            } else {
+                previewDiv.style.display = 'none';
+            }
+        }
+
+        // Progress bar functions
+        function showProgress() {
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('progressFill').style.width = '100%';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressBar').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        // The JavaScript modules export their functions directly to the global scope
+        // No need for wrapper functions - they're already available globally
+        
+        // WebSocket connection functions are exported from websocket-manager.js as:
+        // window.connectWebSocket, window.disconnectWebSocket, etc.
+        
+        // File processing functions are exported from file-processor.js as:
+        // window.processText, window.processAudio, etc.
+
+        // Recording functions are exported from recording-manager.js as:
+        // window.startRecording, window.stopRecording, window.startRealtimeRecording, etc.
+        
+        // Screen sharing functions are exported from screen-sharing.js as:
+        // window.startScreenShare, window.stopScreenShare, window.testFrameCapture
+    </script>
+</body>
+</html> 
