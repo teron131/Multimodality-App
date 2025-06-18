@@ -479,12 +479,14 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                             if content_type == "text":
                                 text_content = content_item.get("text", "")
                                 logger.debug(f"📝 Extracted text: {text_content[:50]}{'...' if len(text_content) > 50 else ''}")
-                            elif content_type == "input_audio":
+                            elif content_type == "audio":
                                 audio_b64 = content_item.get("audio", "")
                                 audio_data = base64.b64decode(audio_b64)
+                                logger.debug(f"🎵 Extracted audio: {len(audio_data)} bytes")
                             elif content_type == "image":
                                 image_b64 = content_item.get("image", "")
                                 image_data = base64.b64decode(image_b64)
+                                logger.debug(f"🖼️ Extracted image: {len(image_data)} bytes")
                             elif content_type == "video":
                                 video_b64 = content_item.get("video", "")
                                 video_data = base64.b64decode(video_b64)
