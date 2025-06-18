@@ -1,0 +1,49 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Multimodality App Architecture
+
+## 🎯 Project Goal
+**Build Gemini-like multimodal AI functionalities with OpenAI API compatibility** - enabling seamless model switching between providers while maintaining consistent interface patterns.
+
+## 📁 Core Architecture
+
+### Main Application
+- [server.py](mdc:multimodality_app/server.py) - FastAPI application entry point
+- [config.py](mdc:multimodality_app/config.py) - Centralized configuration management
+- [schema.py](mdc:multimodality_app/schema.py) - Pydantic models and API schemas
+- [start.sh](mdc:start.sh) - Application startup script
+
+### Media Processing Engine
+Located in [multimodality_app/media_processing/](mdc:multimodality_app/media_processing):
+- [audio.py](mdc:multimodality_app/media_processing/audio.py) - Audio processing (transcription, analysis)
+- [image.py](mdc:multimodality_app/media_processing/image.py) - Image processing and vision capabilities
+- [video.py](mdc:multimodality_app/media_processing/video.py) - Video processing and analysis
+- [utils.py](mdc:multimodality_app/media_processing/utils.py) - Shared processing utilities
+
+### API Routes
+Located in [multimodality_app/routes/](mdc:multimodality_app/routes):
+- [main.py](mdc:multimodality_app/routes/main.py) - Core routing logic
+- [audio.py](mdc:multimodality_app/routes/audio.py) - Audio-related endpoints
+- [image.py](mdc:multimodality_app/routes/image.py) - Image processing endpoints
+- [video.py](mdc:multimodality_app/routes/video.py) - Video processing endpoints
+- [multimodal.py](mdc:multimodality_app/routes/multimodal.py) - Combined multimodal operations
+- [realtime.py](mdc:multimodality_app/routes/realtime.py) - Real-time streaming and WebSocket endpoints
+
+### Infrastructure
+- [llm.py](mdc:multimodality_app/llm.py) - LLM integration and model switching logic
+- [logging_config.py](mdc:multimodality_app/logging_config.py) - Application logging setup
+- [pyproject.toml](mdc:pyproject.toml) - UV-managed dependencies and project configuration
+
+## 🔄 Model Compatibility Strategy
+All implementations should maintain **OpenAI API compatibility** while providing **Gemini-equivalent functionality**:
+- Use OpenAI-style request/response formats
+- Support model switching via configuration
+- Maintain consistent error handling patterns
+- Enable drop-in replacement of AI providers
+
+## 📚 Documentation
+- [docs/](mdc:docs) - Technical documentation and API guides
+- [README.md](mdc:README.md) - Project overview and setup instructions
