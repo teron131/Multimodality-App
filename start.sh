@@ -92,7 +92,7 @@ navigate_menu() {
 
 # Start Gemini backend
 start_gemini() {
-    echo -e "${BLUE}🤖 Starting Gemini backend...${NC}"
+    echo -e "${BLUE}♊ Starting Gemini backend...${NC}"
     
     if [ -z "$GOOGLE_API_KEY" ]; then
         echo -e "${RED}❌ GOOGLE_API_KEY not found in .env file${NC}"

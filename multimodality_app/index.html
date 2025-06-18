@@ -24,7 +24,7 @@
             margin: 0 auto;
             padding: 20px;
         }
-
+        
         header {
             text-align: center;
             color: white;
@@ -144,7 +144,7 @@
             margin-right: 10px;
             margin-bottom: 10px;
         }
-
+        
         .btn-primary {
             background: linear-gradient(135deg, #4299e1, #3182ce);
             color: white;
@@ -179,7 +179,7 @@
             cursor: not-allowed;
             transform: none !important;
         }
-
+        
         .status-indicator {
             padding: 8px 16px;
             border-radius: 20px;
@@ -188,7 +188,7 @@
             margin-bottom: 15px;
             text-align: center;
         }
-
+        
         .status-ready {
             background: #c6f6d5;
             color: #22543d;
@@ -207,7 +207,7 @@
         .output-section {
             grid-column: 1 / -1;
         }
-
+        
         .output {
             background: #f7fafc;
             border: 2px solid #e2e8f0;
@@ -788,7 +788,7 @@
                 updateOutput(`❌ Recording Error: ${error.message}\n`);
             }
         }
-
+        
         function stopRecording() {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
@@ -801,7 +801,7 @@
                 updateOutput('⏹️ Recording stopped, processing...\n');
             }
         }
-
+        
         function updateRecordingTime() {
             const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
             const minutes = Math.floor(elapsed / 60);
@@ -811,7 +811,7 @@
         }
 
         async function processRecordedAudio() {
-            const audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                const audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
             const prompt = document.getElementById('audioPrompt').value;
             
             showProgress();
@@ -820,16 +820,16 @@
                 const formData = new FormData();
                 formData.append('audio', audioBlob, 'recording.webm');
                 formData.append('prompt', prompt);
-
+                
                 const response = await fetch('/api/process-audio-unified', {
                     method: 'POST',
                     body: formData
                 });
-
+                
                 if (!response.ok) {
                     throw new Error(`Processing failed: ${response.status}`);
                 }
-
+                
                 const result = await response.json();
                 updateOutput(`✅ Recording Processing Complete:\n${result.transcription}\n`);
             } catch (error) {
@@ -1048,7 +1048,7 @@
                 updateRealtimeMessage('⏹️ Real-time recording stopped, sending...');
             }
         }
-
+        
         async function sendRealtimeRecording() {
             const audioBlob = new Blob(realtimeRecordedChunks, { type: 'audio/webm' });
             const arrayBuffer = await audioBlob.arrayBuffer();

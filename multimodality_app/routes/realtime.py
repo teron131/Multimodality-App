@@ -24,6 +24,7 @@ from ..media_processing.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -171,23 +172,12 @@ async def process_audio_chunk(audio_data: bytes, session_id: str) -> str:
         session = manager.sessions.get(session_id, {})
         config = session.get("config", RealtimeConfig())
 
-        # Determine audio format parameters from config
+        # Get audio format from config
         input_format = config.input_audio_format
-        sample_rate = 16000  # Default for PCM16
-        channels = 1  # Mono
-        sample_width = 2  # 16-bit = 2 bytes
-
-        if input_format == "pcm16":
-            sample_rate = 16000
-            sample_width = 2
-        elif input_format == "pcm24":
-            sample_rate = 24000
-            sample_width = 3
-
         logger.info(f"🎵 Processing {len(audio_data)} bytes of {input_format} audio")
 
-        # Process raw audio data using new function
-        audio_b64 = encode_raw_audio(audio_data, sample_rate, channels, sample_width)
+        # Process raw audio data using simplified function
+        audio_b64 = encode_raw_audio(audio_data)
 
         # Get instructions
         instructions = config.instructions or "Please transcribe and respond to this audio."
