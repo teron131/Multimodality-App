@@ -853,7 +853,8 @@
             
             websocket.onmessage = function(event) {
                 const message = JSON.parse(event.data);
-                updateRealtimeMessage(`📨 Received: ${JSON.stringify(message, null, 2)}`);
+                const sanitizedObj = sanitizeObjectForDisplay(message);
+                updateRealtimeMessage(`📨 Received: ${JSON.stringify(sanitizedObj, null, 2)}`);
                 
                 if (message.type === 'response.done' && message.response) {
                     const output = message.response.output?.[0]?.content?.[0]?.text || 'No response text';
@@ -908,8 +909,65 @@
 
         function updateRealtimeMessage(message) {
             const messagesDiv = document.getElementById('realtimeMessages');
-            messagesDiv.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            // Sanitize message to avoid displaying long binary data
+            const sanitizedMessage = sanitizeDisplayMessage(message);
+            messagesDiv.textContent += `[${new Date().toLocaleTimeString()}] ${sanitizedMessage}\n`;
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function sanitizeDisplayMessage(message) {
+            // If it's a string, check for long content that might be binary
+            if (typeof message === 'string') {
+                if (message.length > 500) {
+                    // Truncate very long strings
+                    return message.substring(0, 500) + `... <TRUNCATED: ${message.length} total chars>`;
+                }
+                return message;
+            }
+            
+            // If it's an object, sanitize it
+            if (typeof message === 'object') {
+                try {
+                    const sanitized = sanitizeObjectForDisplay(message);
+                    return JSON.stringify(sanitized, null, 2);
+                } catch (e) {
+                    return `<Error displaying message: ${e.message}>`;
+                }
+            }
+            
+            return String(message);
+        }
+
+        function sanitizeObjectForDisplay(obj) {
+            if (Array.isArray(obj)) {
+                return obj.map(item => sanitizeObjectForDisplay(item));
+            }
+            
+            if (obj && typeof obj === 'object') {
+                const sanitized = {};
+                for (const [key, value] of Object.entries(obj)) {
+                    if (typeof value === 'string' && value.length > 100) {
+                        // Check if it looks like base64 data
+                        if (key.toLowerCase().includes('audio') || 
+                            key.toLowerCase().includes('image') || 
+                            key.toLowerCase().includes('video') ||
+                            value.startsWith('data:') ||
+                            /^[A-Za-z0-9+/]+=*$/.test(value.substring(0, 50))) {
+                            sanitized[key] = `<${key.toUpperCase()}_DATA: ${value.length} chars>`;
+                        } else {
+                            // Truncate other long strings
+                            sanitized[key] = value.substring(0, 100) + `... <${value.length} chars total>`;
+                        }
+                    } else if (typeof value === 'object') {
+                        sanitized[key] = sanitizeObjectForDisplay(value);
+                    } else {
+                        sanitized[key] = value;
+                    }
+                }
+                return sanitized;
+            }
+            
+            return obj;
         }
 
         // Real-time sending functions

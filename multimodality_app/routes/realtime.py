@@ -342,9 +342,21 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
 
                 logger.info(f"📨 Received message type: {event_type} for session: {session_id}")
 
-                # Create safe message representation for logging (without binary data)
-                safe_message = _create_safe_message_for_logging(message)
-                logger.debug(f"📄 Message content: {json.dumps(safe_message, indent=2)}")
+                # Log message type and basic info (detailed content filtered by MediaDataFilter)
+                message_info = {"type": event_type, "event_id": event_id, "session_id": session_id}
+
+                # Add non-binary summary information
+                if "audio" in message:
+                    message_info["audio_size_chars"] = len(str(message.get("audio", "")))
+                if "image" in message:
+                    message_info["image_size_chars"] = len(str(message.get("image", "")))
+                if "video" in message:
+                    message_info["video_size_chars"] = len(str(message.get("video", "")))
+                if "text" in message:
+                    text_content = str(message.get("text", ""))
+                    message_info["text_preview"] = text_content[:100] + "..." if len(text_content) > 100 else text_content
+
+                logger.debug(f"📄 Message summary: {json.dumps(message_info, indent=2)}")
 
                 if event_type == "session.update":
                     # Update session configuration
