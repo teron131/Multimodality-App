@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import tempfile
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -317,46 +318,30 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
     Compatible with OpenAI Realtime API format while using your existing LLM backend.
     Supports text, audio, image, and video inputs with streaming responses.
     """
-    session_id = f"session_{id(websocket)}"
-
     try:
+        # Initialize session
+        session_id = f"session_{id(websocket)}"
         await manager.connect(websocket, session_id)
+
+        # Send session created event
+        session_config = RealtimeConfig()
+        session_created = SessionCreatedMessage(event_id=f"event_{session_id}_created", session=session_config)
+        await manager.send_message(session_id, session_created.dict())
         logger.info(f"🔌 WebSocket connection established: {session_id}")
+        logger.info(f"✅ Session created with modalities: {session_config.modalities}")
 
-        # Send session created message
-        session_created = {
-            "event_id": f"event_{session_id}_created",
-            "type": "session.created",
-            "session": manager.sessions[session_id]["config"].dict(),
-        }
-        await manager.send_message(session_id, session_created)
-
+        # Main message handling loop
         while True:
             try:
-                # Receive message from client
-                data = await websocket.receive_text()
-                message = json.loads(data)
+                # Receive message
+                raw_message = await websocket.receive_text()
+                message = json.loads(raw_message)
 
                 event_type = message.get("type")
-                event_id = message.get("event_id", f"event_{asyncio.get_event_loop().time()}")
+                event_id = message.get("event_id", f"event_{int(time.time() * 1000)}")
 
                 logger.info(f"📨 Received message type: {event_type} for session: {session_id}")
-
-                # Log message type and basic info (detailed content filtered by MediaDataFilter)
-                message_info = {"type": event_type, "event_id": event_id, "session_id": session_id}
-
-                # Add non-binary summary information
-                if "audio" in message:
-                    message_info["audio_size_chars"] = len(str(message.get("audio", "")))
-                if "image" in message:
-                    message_info["image_size_chars"] = len(str(message.get("image", "")))
-                if "video" in message:
-                    message_info["video_size_chars"] = len(str(message.get("video", "")))
-                if "text" in message:
-                    text_content = str(message.get("text", ""))
-                    message_info["text_preview"] = text_content[:100] + "..." if len(text_content) > 100 else text_content
-
-                logger.debug(f"📄 Message summary: {json.dumps(message_info, indent=2)}")
+                logger.debug(f"📨 Full message: {_create_safe_message_for_logging(message)}")
 
                 if event_type == "session.update":
                     # Update session configuration
@@ -416,13 +401,15 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                             await manager.send_message(session_id, response)
 
                         except Exception as e:
+                            # Log technical error for developers
+                            logger.error(f"❌ Audio processing error for session {session_id}: {e}")
                             error_response = {
                                 "event_id": event_id,
                                 "type": "error",
                                 "error": {
                                     "type": "server_error",
                                     "code": "processing_failed",
-                                    "message": str(e),
+                                    "message": "Unable to process audio. Please try again.",
                                 },
                             }
                             await manager.send_message(session_id, error_response)
@@ -440,6 +427,22 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                     item_type = item.get("type")
 
                     if item_type == "message":
+                        # Log UI file selection events
+                        content = item.get("content", [])
+                        for content_item in content:
+                            content_type = content_item.get("type")
+                            if content_type == "audio":
+                                audio_b64 = content_item.get("audio", "")
+                                size_mb = len(audio_b64) * 3 / 4 / (1024 * 1024)  # Approximate size from base64
+                                logger.info(f"🎵 UI: Audio file uploaded - {size_mb:.2f} MB base64 data")
+                            elif content_type == "image":
+                                image_b64 = content_item.get("image", "")
+                                size_mb = len(image_b64) * 3 / 4 / (1024 * 1024)  # Approximate size from base64
+                                logger.info(f"🖼️ UI: Image file uploaded - {size_mb:.2f} MB base64 data")
+                            elif content_type == "text":
+                                text_content = content_item.get("text", "")
+                                logger.info(f"📝 UI: Text message sent - {len(text_content)} chars")
+
                         # Store in conversation history
                         manager.sessions[session_id]["conversation"].append(item)
 
@@ -493,7 +496,9 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
 
                         try:
                             # Process using multimodal handler
-                            logger.info(f"🧠 Processing multimodal input for session: {session_id}")
+                            content_types = [item.get("type") for item in content if item.get("type")]
+                            logger.info(f"🧠 Processing multimodal input for session: {session_id} - Content types: {content_types}")
+
                             llm_response = await process_multimodal_input(
                                 text=text_content or None,
                                 audio_data=audio_data,
@@ -536,14 +541,12 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                             manager.sessions[session_id]["conversation"].append(assistant_item)
 
                         except Exception as e:
+                            # Log technical error for developers
+                            logger.error(f"❌ Multimodal processing error for session {session_id}: {e}")
                             error_response = {
                                 "event_id": event_id,
                                 "type": "error",
-                                "error": {
-                                    "type": "server_error",
-                                    "code": "processing_failed",
-                                    "message": str(e),
-                                },
+                                "error": {"type": "server_error", "code": "processing_failed", "message": "Unable to process your request. Please try again."},
                             }
                             await manager.send_message(session_id, error_response)
 
@@ -556,7 +559,7 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                         "error": {
                             "type": "invalid_request_error",
                             "code": "unknown_event_type",
-                            "message": f"Unknown event type: {event_type}",
+                            "message": "Invalid request format. Please try again.",
                         },
                     }
                     await manager.send_message(session_id, error_response)

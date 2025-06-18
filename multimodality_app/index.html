@@ -494,6 +494,28 @@
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
             checkSystemStatus();
+            
+            // Add event listeners for file inputs
+            const realtimeAudioFile = document.getElementById('realtimeAudioFile');
+            const realtimeImageFile = document.getElementById('realtimeImageFile');
+            
+            if (realtimeAudioFile) {
+                realtimeAudioFile.addEventListener('change', function() {
+                    const file = this.files[0];
+                    if (file) {
+                        updateRealtimeMessage(`🎵 Audio file selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                    }
+                });
+            }
+            
+            if (realtimeImageFile) {
+                realtimeImageFile.addEventListener('change', function() {
+                    const file = this.files[0];
+                    if (file) {
+                        updateRealtimeMessage(`🖼️ Image file selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                    }
+                });
+            }
         });
 
         // Tab switching functionality
@@ -598,7 +620,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Processing failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Unable to process text. Please try again.`);
                 }
 
                 const result = await response.json();
@@ -633,7 +656,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Processing failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Unable to process audio file. Please check the file format and try again.`);
                 }
 
                 const result = await response.json();
@@ -668,7 +692,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Processing failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Unable to process image file. Please check the file format and try again.`);
                 }
 
                 const result = await response.json();
@@ -703,7 +728,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Processing failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Unable to process video file. Please check the file format and try again.`);
                 }
 
                 const result = await response.json();
@@ -744,7 +770,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Processing failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Unable to process files. Please check the file formats and try again.`);
                 }
 
                 const result = await response.json();
@@ -827,7 +854,8 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Processing failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Unable to process recording. Please try recording again.`);
                 }
                 
                 const result = await response.json();
@@ -847,31 +875,40 @@
             websocket.onopen = function(event) {
                 isConnected = true;
                 updateWebSocketStatus('Connected', 'connected');
-                updateRealtimeMessage('✅ WebSocket connected successfully');
+                updateRealtimeMessage('✅ Connected to server successfully');
                 enableRealtimeControls(true);
             };
             
             websocket.onmessage = function(event) {
                 const message = JSON.parse(event.data);
-                const sanitizedObj = sanitizeObjectForDisplay(message);
-                updateRealtimeMessage(`📨 Received: ${JSON.stringify(sanitizedObj, null, 2)}`);
                 
+                // Show user-friendly messages based on message type
                 if (message.type === 'response.done' && message.response) {
-                    const output = message.response.output?.[0]?.content?.[0]?.text || 'No response text';
-                    updateOutput(`🤖 Real-time Response: ${output}\n`);
+                    const output = message.response.output?.[0]?.content?.[0]?.text || 'No response received';
+                    updateOutput(`🤖 AI Response: ${output}\n`);
+                    updateRealtimeMessage(`✅ Response received from AI`);
+                } else if (message.type === 'error') {
+                    updateRealtimeMessage(`❌ Server error: ${message.error?.message || 'Unknown error'}`);
+                } else if (message.type === 'response.audio_transcript.delta') {
+                    updateRealtimeMessage(`🎵 Processing audio...`);
+                } else if (message.type === 'conversation.item.created') {
+                    updateRealtimeMessage(`✅ Message processed by server`);
+                } else {
+                    // For other message types, show a generic confirmation
+                    updateRealtimeMessage(`📨 Server response received`);
                 }
             };
             
             websocket.onclose = function(event) {
                 isConnected = false;
                 updateWebSocketStatus('Disconnected', 'ready');
-                updateRealtimeMessage('❌ WebSocket disconnected');
+                updateRealtimeMessage('❌ Disconnected from server');
                 enableRealtimeControls(false);
             };
             
             websocket.onerror = function(error) {
-                updateRealtimeMessage(`❌ WebSocket error: ${error}`);
-                updateOutput(`❌ WebSocket Error: ${error}\n`);
+                updateRealtimeMessage(`❌ Connection error. Please try reconnecting.`);
+                updateOutput(`❌ Connection Error: Unable to connect to server\n`);
             };
         }
 
@@ -916,58 +953,16 @@
         }
 
         function sanitizeDisplayMessage(message) {
-            // If it's a string, check for long content that might be binary
+            // Simple sanitization for user-friendly messages
             if (typeof message === 'string') {
                 if (message.length > 500) {
                     // Truncate very long strings
-                    return message.substring(0, 500) + `... <TRUNCATED: ${message.length} total chars>`;
+                    return message.substring(0, 500) + `... <message truncated>`;
                 }
                 return message;
             }
             
-            // If it's an object, sanitize it
-            if (typeof message === 'object') {
-                try {
-                    const sanitized = sanitizeObjectForDisplay(message);
-                    return JSON.stringify(sanitized, null, 2);
-                } catch (e) {
-                    return `<Error displaying message: ${e.message}>`;
-                }
-            }
-            
             return String(message);
-        }
-
-        function sanitizeObjectForDisplay(obj) {
-            if (Array.isArray(obj)) {
-                return obj.map(item => sanitizeObjectForDisplay(item));
-            }
-            
-            if (obj && typeof obj === 'object') {
-                const sanitized = {};
-                for (const [key, value] of Object.entries(obj)) {
-                    if (typeof value === 'string' && value.length > 100) {
-                        // Check if it looks like base64 data
-                        if (key.toLowerCase().includes('audio') || 
-                            key.toLowerCase().includes('image') || 
-                            key.toLowerCase().includes('video') ||
-                            value.startsWith('data:') ||
-                            /^[A-Za-z0-9+/]+=*$/.test(value.substring(0, 50))) {
-                            sanitized[key] = `<${key.toUpperCase()}_DATA: ${value.length} chars>`;
-                        } else {
-                            // Truncate other long strings
-                            sanitized[key] = value.substring(0, 100) + `... <${value.length} chars total>`;
-                        }
-                    } else if (typeof value === 'object') {
-                        sanitized[key] = sanitizeObjectForDisplay(value);
-                    } else {
-                        sanitized[key] = value;
-                    }
-                }
-                return sanitized;
-            }
-            
-            return obj;
         }
 
         // Real-time sending functions
@@ -999,68 +994,122 @@
             }, 100);
         }
 
+        // Helper function for efficient base64 conversion
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            const chunkSize = 8192; // Process in chunks to avoid stack overflow
+            
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                const chunk = bytes.slice(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+            
+            return btoa(binary);
+        }
+
         async function sendRealtimeAudio() {
             const fileInput = document.getElementById('realtimeAudioFile');
-            if (!fileInput.files[0] || !isConnected) return;
             
-            const file = fileInput.files[0];
-            const arrayBuffer = await file.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            if (!fileInput) {
+                updateRealtimeMessage('❌ Audio file input not found');
+                return;
+            }
             
-            const message = {
-                event_id: `audio_${Date.now()}`,
-                type: 'conversation.item.create',
-                item: {
-                    id: `item_${Date.now()}`,
-                    type: 'message',
-                    role: 'user',
-                    content: [{ type: 'audio', audio: base64 }]
-                }
-            };
+            if (!fileInput.files[0]) {
+                updateRealtimeMessage('❌ Please select an audio file');
+                return;
+            }
             
-            websocket.send(JSON.stringify(message));
-            updateRealtimeMessage(`📤 Sent audio file: ${file.name}`);
+            if (!isConnected) {
+                updateRealtimeMessage('❌ Please connect to the server first');
+                return;
+            }
             
-            // Request response
-            setTimeout(() => {
-                const responseRequest = {
-                    event_id: `response_${Date.now()}`,
-                    type: 'response.create'
+            try {
+                const file = fileInput.files[0];
+                updateRealtimeMessage(`📤 Sending audio file: ${file.name}`);
+                
+                const arrayBuffer = await file.arrayBuffer();
+                const base64 = arrayBufferToBase64(arrayBuffer);
+                
+                const message = {
+                    event_id: `audio_${Date.now()}`,
+                    type: 'conversation.item.create',
+                    item: {
+                        id: `item_${Date.now()}`,
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'audio', audio: base64 }]
+                    }
                 };
-                websocket.send(JSON.stringify(responseRequest));
-            }, 100);
+                
+                websocket.send(JSON.stringify(message));
+                updateRealtimeMessage(`✅ Audio file sent successfully`);
+                
+                // Request response
+                setTimeout(() => {
+                    const responseRequest = {
+                        event_id: `response_${Date.now()}`,
+                        type: 'response.create'
+                    };
+                    websocket.send(JSON.stringify(responseRequest));
+                }, 100);
+            } catch (error) {
+                updateRealtimeMessage(`❌ Failed to send audio file: ${error.message}`);
+            }
         }
 
         async function sendRealtimeImage() {
             const fileInput = document.getElementById('realtimeImageFile');
-            if (!fileInput.files[0] || !isConnected) return;
             
-            const file = fileInput.files[0];
-            const arrayBuffer = await file.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            if (!fileInput) {
+                updateRealtimeMessage('❌ Image file input not found');
+                return;
+            }
             
-            const message = {
-                event_id: `image_${Date.now()}`,
-                type: 'conversation.item.create',
-                item: {
-                    id: `item_${Date.now()}`,
-                    type: 'message',
-                    role: 'user',
-                    content: [{ type: 'image', image: base64 }]
-                }
-            };
+            if (!fileInput.files[0]) {
+                updateRealtimeMessage('❌ Please select an image file');
+                return;
+            }
             
-            websocket.send(JSON.stringify(message));
-            updateRealtimeMessage(`📤 Sent image file: ${file.name}`);
+            if (!isConnected) {
+                updateRealtimeMessage('❌ Please connect to the server first');
+                return;
+            }
             
-            // Request response
-            setTimeout(() => {
-                const responseRequest = {
-                    event_id: `response_${Date.now()}`,
-                    type: 'response.create'
+            try {
+                const file = fileInput.files[0];
+                updateRealtimeMessage(`📤 Sending image file: ${file.name}`);
+                
+                const arrayBuffer = await file.arrayBuffer();
+                const base64 = arrayBufferToBase64(arrayBuffer);
+                
+                const message = {
+                    event_id: `image_${Date.now()}`,
+                    type: 'conversation.item.create',
+                    item: {
+                        id: `item_${Date.now()}`,
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'image', image: base64 }]
+                    }
                 };
-                websocket.send(JSON.stringify(responseRequest));
-            }, 100);
+                
+                websocket.send(JSON.stringify(message));
+                updateRealtimeMessage(`✅ Image file sent successfully`);
+                
+                // Request response
+                setTimeout(() => {
+                    const responseRequest = {
+                        event_id: `response_${Date.now()}`,
+                        type: 'response.create'
+                    };
+                    websocket.send(JSON.stringify(responseRequest));
+                }, 100);
+            } catch (error) {
+                updateRealtimeMessage(`❌ Failed to send image file: ${error.message}`);
+            }
         }
 
         // Real-time recording
@@ -1110,7 +1159,7 @@
         async function sendRealtimeRecording() {
             const audioBlob = new Blob(realtimeRecordedChunks, { type: 'audio/webm' });
             const arrayBuffer = await audioBlob.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            const base64 = arrayBufferToBase64(arrayBuffer);
             
             const message = {
                 event_id: `live_audio_${Date.now()}`,

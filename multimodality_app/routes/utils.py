@@ -27,15 +27,34 @@ def error_response(message: str, error_code: Optional[str] = None, details: Opti
 
 def handle_processing_error(operation: str, error: Exception, status_code: int = 500) -> HTTPException:
     """Standardized error handling for processing operations."""
-    error_msg = f"{operation} failed: {str(error)}"
+    # Log the technical error for developers
     logger.error(f"Processing error in {operation}: {error}")
-    return HTTPException(status_code=status_code, detail=error_msg)
+
+    # Provide user-friendly error messages based on operation type
+    user_friendly_messages = {
+        "Audio upload": "Unable to upload audio file. Please check the file format and try again.",
+        "Audio processing": "Unable to process audio file. Please try again or use a different audio file.",
+        "Unified audio processing": "Unable to process audio file. Please check the file format and try again.",
+        "Image upload": "Unable to upload image file. Please check the file format and try again.",
+        "Image processing": "Unable to process image file. Please try again or use a different image file.",
+        "Unified image processing": "Unable to process image file. Please check the file format and try again.",
+        "Video upload": "Unable to upload video file. Please check the file format and try again.",
+        "Video processing": "Unable to process video file. Please try again or use a different video file.",
+        "Unified video processing": "Unable to process video file. Please check the file format and try again.",
+        "Multimodal processing": "Unable to process files. Please check the file formats and try again.",
+        "Unified multimodal processing": "Unable to process files. Please check the file formats and try again.",
+    }
+
+    # Get user-friendly message or fallback to a generic one
+    user_message = user_friendly_messages.get(operation, "Processing failed. Please try again.")
+
+    return HTTPException(status_code=status_code, detail=user_message)
 
 
 def validate_file_upload(filename: Optional[str], content_type: Optional[str], allowed_types: set) -> None:
     """Validate uploaded file requirements."""
     if not filename:
-        raise HTTPException(status_code=400, detail="No filename provided")
+        raise HTTPException(status_code=400, detail="Please select a file to upload.")
 
     if content_type and content_type not in allowed_types:
         logger.warning(f"Unusual content type: {content_type}, proceeding anyway")
