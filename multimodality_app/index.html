@@ -329,7 +329,7 @@
                     </div>
                     <div class="form-group">
                         <label for="audioPrompt">Analysis Prompt:</label>
-                        <textarea id="audioPrompt" placeholder="What should I analyze about this audio?">Please transcribe this audio and provide insights about what you hear.</textarea>
+                        <textarea id="audioPrompt" placeholder="What should I analyze about this audio?">Transcribe this audio and provide insights about what you hear.</textarea>
                     </div>
                     <button class="btn btn-primary" onclick="processAudio()">Process Audio</button>
                     
@@ -349,7 +349,7 @@
                     </div>
                     <div class="form-group">
                         <label for="imagePrompt">Analysis Prompt:</label>
-                        <textarea id="imagePrompt" placeholder="What should I analyze about this image?">Please analyze this image and describe what you see in detail.</textarea>
+                        <textarea id="imagePrompt" placeholder="What should I analyze about this image?">Analyze this image and describe what you see in detail.</textarea>
                     </div>
                     <button class="btn btn-primary" onclick="processImage()">Process Image</button>
                 </div>
@@ -363,7 +363,7 @@
                     </div>
                     <div class="form-group">
                         <label for="videoPrompt">Analysis Prompt:</label>
-                        <textarea id="videoPrompt" placeholder="What should I analyze about this video?">Please analyze this video and describe what you see, including any actions or notable details.</textarea>
+                        <textarea id="videoPrompt" placeholder="What should I analyze about this video?">Analyze this video and describe what you see, including any actions or notable details.</textarea>
                     </div>
                     <button class="btn btn-primary" onclick="processVideo()">Process Video</button>
                 </div>
@@ -382,7 +382,7 @@
                     </div>
                     <div class="form-group">
                         <label for="multiPrompt">Analysis Prompt:</label>
-                        <textarea id="multiPrompt" placeholder="What should I analyze about this multimodal content?">Please analyze the provided content and provide comprehensive insights.</textarea>
+                        <textarea id="multiPrompt" placeholder="What should I analyze about this multimodal content?">Analyze the provided content and provide comprehensive insights.</textarea>
                     </div>
                     <button class="btn btn-primary" onclick="processMultimodal()">Process Multimodal</button>
                 </div>
@@ -405,6 +405,7 @@
                     <button class="tab active" onclick="switchTab('realtime', 'text')">📝 Text</button>
                     <button class="tab" onclick="switchTab('realtime', 'audio')">🎵 Audio</button>
                     <button class="tab" onclick="switchTab('realtime', 'image')">🖼️ Image</button>
+                    <button class="tab" onclick="switchTab('realtime', 'video')">🎬 Video</button>
                 </div>
 
                 <!-- Realtime Text -->
@@ -439,6 +440,64 @@
                     <button class="btn btn-primary" onclick="sendRealtimeImage()" disabled id="sendImageBtn">Send Image</button>
                 </div>
 
+                <!-- Realtime Video -->
+                <div id="realtime-video" class="tab-content">
+                    <div class="form-group">
+                        <label for="realtimeVideoFile">Upload Video:</label>
+                        <input type="file" id="realtimeVideoFile" accept="video/*" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="realtimeVideoPrompt">Analysis Prompt:</label>
+                        <textarea id="realtimeVideoPrompt" placeholder="What should I analyze about this video?" disabled>Analyze this video and describe what you see, including any actions or notable details.</textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendRealtimeVideo()" disabled id="sendVideoBtn">Send Video</button>
+                    
+                    <div style="margin-top: 15px;">
+                        <h4>🖥️ Screen Sharing</h4>
+                        <button class="btn btn-secondary" onclick="startScreenShare()" disabled id="videoStreamBtn">📺 Share Screen</button>
+                        <button class="btn btn-danger" onclick="stopScreenShare()" disabled id="videoDisconnectBtn">⏹️ Stop Sharing</button>
+                        <div id="videoStreamStatus" class="status-indicator" style="display: none;"></div>
+                        <div style="margin-top: 10px;">
+                            <label for="screenAnalysisPrompt">Screen Analysis Prompt:</label>
+                            <textarea id="screenAnalysisPrompt" placeholder="What should I analyze about your screen?" style="width: 100%; height: 60px; margin-top: 5px;">Describe what you see on the screen and any notable changes or activities.</textarea>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label for="frameInterval">Analysis Interval:</label>
+                            <select id="frameInterval" style="margin-left: 10px;">
+                                <option value="1000">Every 1 second (High frequency)</option>
+                                <option value="3000" selected>Every 3 seconds (Optimal)</option>
+                                <option value="5000">Every 5 seconds (Balanced)</option>
+                                <option value="10000">Every 10 seconds (Conservative)</option>
+                                <option value="30000">Every 30 seconds (Minimal)</option>
+                                <option value="60000">Every 1 minute (Monitoring)</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label for="imageQuality">Image Quality:</label>
+                            <select id="imageQuality" style="margin-left: 10px;">
+                                <option value="0.6">High compression (smaller files)</option>
+                                <option value="0.75" selected>Balanced (recommended)</option>
+                                <option value="0.85">High quality (larger files)</option>
+                                <option value="0.95">Maximum quality</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label for="changeThreshold">Change Detection Sensitivity:</label>
+                            <select id="changeThreshold" style="margin-left: 10px;">
+                                <option value="1">Very sensitive (1% change)</option>
+                                <option value="3">Sensitive (3% change)</option>
+                                <option value="5" selected>Balanced (5% change)</option>
+                                <option value="10">Conservative (10% change)</option>
+                                <option value="20">Very conservative (20% change)</option>
+                                <option value="0">Disabled (analyze all frames)</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button class="btn btn-secondary" onclick="testFrameCapture()" disabled id="testCaptureBtn" style="font-size: 0.9em;">🧪 Test Frame Capture</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="realtime-messages" id="realtimeMessages">
                     WebSocket messages will appear here...
                 </div>
@@ -468,6 +527,8 @@
                 • Live text messaging
                 • Real-time audio streaming
                 • Live image processing
+                • Real-time video analysis
+                • Live screen sharing & analysis
                 • Bidirectional communication
                 
                 🔧 System Status:
@@ -498,6 +559,7 @@
             // Add event listeners for file inputs
             const realtimeAudioFile = document.getElementById('realtimeAudioFile');
             const realtimeImageFile = document.getElementById('realtimeImageFile');
+            const realtimeVideoFile = document.getElementById('realtimeVideoFile');
             
             if (realtimeAudioFile) {
                 realtimeAudioFile.addEventListener('change', function() {
@@ -513,6 +575,15 @@
                     const file = this.files[0];
                     if (file) {
                         updateRealtimeMessage(`🖼️ Image file selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                    }
+                });
+            }
+            
+            if (realtimeVideoFile) {
+                realtimeVideoFile.addEventListener('change', function() {
+                    const file = this.files[0];
+                    if (file) {
+                        updateRealtimeMessage(`🎬 Video file selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB, ${file.type})`);
                     }
                 });
             }
@@ -615,7 +686,7 @@
                     },
                     body: JSON.stringify({
                         text: text,
-                        prompt: 'Please analyze this text and provide insights.'
+                        prompt: 'Analyze this text and provide insights.'
                     })
                 });
 
@@ -931,8 +1002,9 @@
 
         function enableRealtimeControls(enabled) {
             const controls = [
-                'sendTextBtn', 'sendAudioBtn', 'sendImageBtn',
-                'realtimeAudioFile', 'realtimeImageFile',
+                'sendTextBtn', 'sendAudioBtn', 'sendImageBtn', 'sendVideoBtn',
+                'realtimeAudioFile', 'realtimeImageFile', 'realtimeVideoFile',
+                'realtimeVideoPrompt', 'videoStreamBtn', 'screenAnalysisPrompt', 'frameInterval', 'imageQuality', 'changeThreshold', 'testCaptureBtn',
                 'realtimeRecordBtn'
             ];
             
@@ -1109,6 +1181,449 @@
                 }, 100);
             } catch (error) {
                 updateRealtimeMessage(`❌ Failed to send image file: ${error.message}`);
+            }
+        }
+
+        async function sendRealtimeVideo() {
+            const fileInput = document.getElementById('realtimeVideoFile');
+            const promptInput = document.getElementById('realtimeVideoPrompt');
+            
+            if (!fileInput) {
+                updateRealtimeMessage('❌ Video file input not found');
+                return;
+            }
+            
+            if (!fileInput.files[0]) {
+                updateRealtimeMessage('❌ Please select a video file');
+                return;
+            }
+            
+            if (!isConnected) {
+                updateRealtimeMessage('❌ Please connect to the server first');
+                return;
+            }
+            
+            try {
+                const file = fileInput.files[0];
+                const prompt = promptInput ? promptInput.value : 'Analyze this video';
+                updateRealtimeMessage(`📤 Sending video file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                
+                const arrayBuffer = await file.arrayBuffer();
+                const base64 = arrayBufferToBase64(arrayBuffer);
+                
+                // Send video with custom prompt
+                const message = {
+                    event_id: `video_${Date.now()}`,
+                    type: 'conversation.item.create',
+                    item: {
+                        id: `item_${Date.now()}`,
+                        type: 'message',
+                        role: 'user',
+                        content: [
+                            { type: 'video', video: base64 },
+                            { type: 'text', text: prompt }
+                        ]
+                    }
+                };
+                
+                websocket.send(JSON.stringify(message));
+                updateRealtimeMessage(`✅ Video file sent successfully`);
+                
+                // Request response
+                setTimeout(() => {
+                    const responseRequest = {
+                        event_id: `response_${Date.now()}`,
+                        type: 'response.create'
+                    };
+                    websocket.send(JSON.stringify(responseRequest));
+                }, 100);
+            } catch (error) {
+                updateRealtimeMessage(`❌ Failed to send video file: ${error.message}`);
+            }
+        }
+
+        // Screen sharing functionality
+        let videoStreamSocket = null;
+        let isVideoStreamConnected = false;
+        let screenStream = null;
+        let screenVideo = null;
+        let screenCanvas = null;
+        let screenContext = null;
+        let frameIntervalId = null;
+        let frameCounter = 0;
+        let lastFrameChecksum = null;
+
+        async function startScreenShare() {
+            try {
+                // Request screen sharing permission with optimized settings
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        width: { ideal: 1280, max: 1920 },  // Optimized: 1280p is good balance
+                        height: { ideal: 720, max: 1080 },   // Optimized: 720p reduces data while maintaining quality
+                        frameRate: { ideal: 5, max: 8 }     // Optimized: Lower framerate for analysis (not real-time video)
+                    },
+                    audio: false
+                });
+
+                // Connect to video streaming WebSocket
+                if (!videoStreamSocket) {
+                    await connectToVideoStream();
+                }
+
+                // Set up video element for screen capture
+                screenVideo = document.createElement('video');
+                screenVideo.srcObject = screenStream;
+                screenVideo.autoplay = true;
+                screenVideo.muted = true;
+                screenVideo.playsInline = true;
+                // Optimized video preview - smaller and less intrusive
+                screenVideo.style.position = 'fixed';
+                screenVideo.style.bottom = '10px';
+                screenVideo.style.right = '10px';
+                screenVideo.style.width = '160px';     // Smaller preview
+                screenVideo.style.height = '90px';     // Maintains 16:9 aspect ratio
+                screenVideo.style.border = '1px solid #4299e1';
+                screenVideo.style.borderRadius = '6px';
+                screenVideo.style.zIndex = '9999';
+                screenVideo.style.backgroundColor = '#000';
+                screenVideo.style.opacity = '0.8';     // Semi-transparent
+                screenVideo.style.cursor = 'pointer';
+                document.body.appendChild(screenVideo);
+
+                // Set up canvas for frame extraction
+                screenCanvas = document.createElement('canvas');
+                screenContext = screenCanvas.getContext('2d');
+
+                // Wait for video to be ready and playing
+                screenVideo.onloadedmetadata = function() {
+                    updateRealtimeMessage(`📹 Video metadata loaded: ${screenVideo.videoWidth}x${screenVideo.videoHeight}`);
+                };
+
+                screenVideo.oncanplay = function() {
+                    updateRealtimeMessage('📹 Video can start playing');
+                };
+
+                screenVideo.onplaying = function() {
+                    // Optimize canvas size for AI analysis (max 1280x720 for efficiency)
+                    const maxWidth = 1280;
+                    const maxHeight = 720;
+                    const aspectRatio = screenVideo.videoWidth / screenVideo.videoHeight;
+                    
+                    if (screenVideo.videoWidth > maxWidth || screenVideo.videoHeight > maxHeight) {
+                        if (aspectRatio > maxWidth / maxHeight) {
+                            screenCanvas.width = maxWidth;
+                            screenCanvas.height = Math.round(maxWidth / aspectRatio);
+                        } else {
+                            screenCanvas.height = maxHeight;
+                            screenCanvas.width = Math.round(maxHeight * aspectRatio);
+                        }
+                    } else {
+                        screenCanvas.width = screenVideo.videoWidth;
+                        screenCanvas.height = screenVideo.videoHeight;
+                    }
+                    
+                    updateVideoStreamStatus('Screen sharing active', 'status-ready');
+                    updateRealtimeMessage(`✅ Screen sharing active - Video: ${screenVideo.videoWidth}x${screenVideo.videoHeight} → Canvas: ${screenCanvas.width}x${screenCanvas.height}`);
+                    
+                    // Wait a bit more before starting frame analysis to ensure video is stable
+                    setTimeout(() => {
+                        startFrameAnalysis();
+                    }, 1000);
+                    
+                    document.getElementById('videoStreamBtn').disabled = true;
+                    document.getElementById('videoDisconnectBtn').disabled = false;
+                };
+
+                // Force play the video (some browsers need this)
+                screenVideo.play().catch(e => {
+                    updateRealtimeMessage(`❌ Video play error: ${e.message}`);
+                });
+
+                // Handle screen share end (user clicks browser's stop sharing)
+                screenStream.getVideoTracks()[0].onended = function() {
+                    stopScreenShare();
+                };
+
+            } catch (error) {
+                updateRealtimeMessage(`❌ Screen sharing error: ${error.message}`);
+                updateVideoStreamStatus('Screen sharing failed', 'status-processing');
+            }
+        }
+
+        async function connectToVideoStream() {
+            return new Promise((resolve, reject) => {
+                const wsUrl = `ws://${window.location.host}/ws/realtime/video`;
+                videoStreamSocket = new WebSocket(wsUrl);
+                
+                videoStreamSocket.onopen = function(event) {
+                    isVideoStreamConnected = true;
+                    updateRealtimeMessage('✅ Connected to video analysis server');
+                    resolve();
+                };
+                
+                videoStreamSocket.onmessage = function(event) {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.type === 'video_stream.connected') {
+                        updateRealtimeMessage(`🖥️ Screen analysis ready`);
+                    } else if (message.type === 'video_frame.analyzed') {
+                        updateRealtimeMessage(`🖥️ Screen frame ${message.frame_id} analyzed`);
+                        updateOutput(`🖥️ Screen Analysis: ${message.analysis}\n`);
+                    } else if (message.type === 'error') {
+                        updateRealtimeMessage(`❌ Analysis error: ${message.message}`);
+                    }
+                };
+                
+                videoStreamSocket.onclose = function(event) {
+                    isVideoStreamConnected = false;
+                    videoStreamSocket = null;
+                };
+                
+                videoStreamSocket.onerror = function(error) {
+                    updateRealtimeMessage('❌ Connection to video analysis server failed');
+                    reject(error);
+                };
+            });
+        }
+
+        function startFrameAnalysis() {
+            const interval = parseInt(document.getElementById('frameInterval').value);
+            
+            frameIntervalId = setInterval(() => {
+                captureAndAnalyzeFrame();
+            }, interval);
+            
+            updateRealtimeMessage(`🖥️ Frame analysis started (every ${interval/1000} seconds)`);
+        }
+
+        function captureAndAnalyzeFrame() {
+            if (!screenVideo || !screenCanvas || !screenContext || !isVideoStreamConnected) {
+                updateRealtimeMessage('❌ Frame capture skipped - components not ready');
+                return;
+            }
+
+            // Check if video is actually playing
+            if (screenVideo.paused || screenVideo.ended || screenVideo.readyState < 2) {
+                updateRealtimeMessage(`❌ Video not ready: paused=${screenVideo.paused}, ended=${screenVideo.ended}, readyState=${screenVideo.readyState}`);
+                return;
+            }
+
+            try {
+                // Clear canvas first
+                screenContext.clearRect(0, 0, screenCanvas.width, screenCanvas.height);
+                
+                // Draw current video frame to canvas
+                screenContext.drawImage(screenVideo, 0, 0, screenCanvas.width, screenCanvas.height);
+                
+                // Check if we actually drew something and detect changes
+                const sampleSize = Math.min(100, screenCanvas.width, screenCanvas.height);
+                const imageData = screenContext.getImageData(0, 0, sampleSize, sampleSize);
+                const pixels = imageData.data;
+                let hasContent = false;
+                let checksum = 0;
+                
+                // Check if there are non-black pixels and calculate simple checksum
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+                    if (r > 0 || g > 0 || b > 0) {
+                        hasContent = true;
+                    }
+                    // Simple checksum for change detection (sample every 16th pixel)
+                    if (i % 64 === 0) {
+                        checksum += r + g + b;
+                    }
+                }
+                
+                if (!hasContent) {
+                    updateRealtimeMessage(`❌ Captured frame appears to be black - video may not be ready`);
+                    return;
+                }
+                
+                // Skip analysis if frame hasn't changed significantly (percentage-based)
+                if (lastFrameChecksum !== null && lastFrameChecksum > 0) {
+                    const changeThreshold = parseFloat(document.getElementById('changeThreshold').value);
+                    
+                    // If threshold is 0, change detection is disabled
+                    if (changeThreshold > 0) {
+                        const changePercentage = Math.abs(checksum - lastFrameChecksum) / lastFrameChecksum;
+                        const thresholdDecimal = changeThreshold / 100;
+                        
+                        if (changePercentage < thresholdDecimal) {
+                            updateRealtimeMessage(`⏭️ Frame ${frameCounter + 1} skipped - change: ${(changePercentage * 100).toFixed(1)}% (< ${changeThreshold}% threshold)`);
+                            return;
+                        } else {
+                            updateRealtimeMessage(`📸 Frame ${frameCounter + 1} - change: ${(changePercentage * 100).toFixed(1)}% (≥ ${changeThreshold}% threshold)`);
+                        }
+                    } else {
+                        updateRealtimeMessage(`📸 Frame ${frameCounter + 1} - change detection disabled`);
+                    }
+                }
+                lastFrameChecksum = checksum;
+                
+                // Convert canvas to blob with optimized compression
+                screenCanvas.toBlob(async (blob) => {
+                    if (blob && blob.size > 1000) { // Ensure we have a reasonable blob size
+                        frameCounter++;
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const prompt = document.getElementById('screenAnalysisPrompt').value || 'Describe what you see on the screen';
+                        
+                        // Calculate compression ratio for monitoring
+                        const compressionRatio = ((screenCanvas.width * screenCanvas.height * 3) / blob.size).toFixed(1);
+                        updateRealtimeMessage(`📸 Frame ${frameCounter} (${(blob.size/1024).toFixed(1)}KB, ${compressionRatio}x compressed) - analyzing...`);
+                        await sendVideoFrame(arrayBuffer, frameCounter, prompt);
+                    } else {
+                        updateRealtimeMessage(`❌ Invalid blob: size=${blob ? blob.size : 'null'} bytes`);
+                    }
+                }, 'image/jpeg', parseFloat(document.getElementById('imageQuality').value));  // User-configurable quality
+                
+            } catch (error) {
+                updateRealtimeMessage(`❌ Frame capture error: ${error.message}`);
+                console.error('Frame capture error:', error);
+            }
+        }
+
+        function stopScreenShare() {
+            // Stop frame analysis
+            if (frameIntervalId) {
+                clearInterval(frameIntervalId);
+                frameIntervalId = null;
+            }
+
+            // Stop screen stream
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
+
+            // Clean up video element
+            if (screenVideo) {
+                screenVideo.remove();
+                screenVideo = null;
+            }
+
+            // Clean up canvas
+            screenCanvas = null;
+            screenContext = null;
+
+            // Close WebSocket
+            if (videoStreamSocket) {
+                videoStreamSocket.close();
+            }
+
+            // Reset UI
+            isVideoStreamConnected = false;
+            frameCounter = 0;
+            updateVideoStreamStatus('Screen sharing stopped', 'status-processing');
+            updateRealtimeMessage('⏹️ Screen sharing stopped');
+            
+            document.getElementById('videoStreamBtn').disabled = false;
+            document.getElementById('videoDisconnectBtn').disabled = true;
+        }
+
+        function updateVideoStreamStatus(text, statusClass) {
+            const statusDiv = document.getElementById('videoStreamStatus');
+            if (statusDiv) {
+                statusDiv.textContent = text;
+                statusDiv.className = `status-indicator ${statusClass}`;
+                statusDiv.style.display = 'block';
+            }
+        }
+
+        function testFrameCapture() {
+            if (!screenVideo || !screenCanvas || !screenContext) {
+                updateRealtimeMessage('❌ Test failed - components not initialized');
+                return;
+            }
+
+            updateRealtimeMessage(`🧪 Testing frame capture...`);
+            updateRealtimeMessage(`📹 Video state: playing=${!screenVideo.paused}, ended=${screenVideo.ended}, readyState=${screenVideo.readyState}`);
+            updateRealtimeMessage(`📹 Video dimensions: ${screenVideo.videoWidth}x${screenVideo.videoHeight}`);
+            updateRealtimeMessage(`📹 Canvas dimensions: ${screenCanvas.width}x${screenCanvas.height}`);
+
+            try {
+                // Clear canvas and draw frame
+                screenContext.clearRect(0, 0, screenCanvas.width, screenCanvas.height);
+                screenContext.drawImage(screenVideo, 0, 0, screenCanvas.width, screenCanvas.height);
+
+                // Sample some pixels
+                const centerX = Math.floor(screenCanvas.width / 2);
+                const centerY = Math.floor(screenCanvas.height / 2);
+                const centerPixel = screenContext.getImageData(centerX, centerY, 1, 1).data;
+                updateRealtimeMessage(`🔍 Center pixel: R=${centerPixel[0]}, G=${centerPixel[1]}, B=${centerPixel[2]}, A=${centerPixel[3]}`);
+
+                // Create a small test image to verify the canvas works
+                const testCanvas = document.createElement('canvas');
+                testCanvas.width = 200;
+                testCanvas.height = 200;
+                const testCtx = testCanvas.getContext('2d');
+                
+                // Draw the captured frame scaled down
+                testCtx.drawImage(screenCanvas, 0, 0, 200, 200);
+                
+                // Create a data URL for visual inspection
+                const dataUrl = testCanvas.toDataURL('image/jpeg', 0.9);
+                updateRealtimeMessage(`📊 Test image data URL length: ${dataUrl.length} chars`);
+                
+                // Show if the data URL contains actual image data (not just a black image)
+                if (dataUrl.length > 5000) {
+                    updateRealtimeMessage(`✅ Test capture appears to contain image data`);
+                } else {
+                    updateRealtimeMessage(`❌ Test capture appears to be empty/black`);
+                }
+
+            } catch (error) {
+                updateRealtimeMessage(`❌ Test error: ${error.message}`);
+                console.error('Test capture error:', error);
+            }
+        }
+
+        // Send video to streaming endpoint
+        async function sendVideoToStream(videoFile, prompt = 'Analyze this video') {
+            if (!isVideoStreamConnected || !videoStreamSocket) {
+                updateRealtimeMessage('❌ Video stream not connected');
+                return;
+            }
+            
+            try {
+                const arrayBuffer = await videoFile.arrayBuffer();
+                const base64 = arrayBufferToBase64(arrayBuffer);
+                
+                const message = {
+                    type: 'video_complete',
+                    video: base64,
+                    prompt: prompt,
+                    timestamp: Date.now()
+                };
+                
+                videoStreamSocket.send(JSON.stringify(message));
+                updateRealtimeMessage(`📤 Video sent to streaming endpoint: ${videoFile.name}`);
+            } catch (error) {
+                updateRealtimeMessage(`❌ Failed to send video to stream: ${error.message}`);
+            }
+        }
+
+        // Send individual video frame
+        async function sendVideoFrame(frameData, frameId, prompt = 'Describe this video frame') {
+            if (!isVideoStreamConnected || !videoStreamSocket) {
+                updateRealtimeMessage('❌ Video stream not connected');
+                return;
+            }
+            
+            try {
+                const base64 = arrayBufferToBase64(frameData);
+                
+                const message = {
+                    type: 'video_frame',
+                    frame: base64,
+                    frame_id: frameId,
+                    prompt: prompt,
+                    timestamp: Date.now()
+                };
+                
+                videoStreamSocket.send(JSON.stringify(message));
+                updateRealtimeMessage(`📤 Video frame ${frameId} sent for analysis`);
+            } catch (error) {
+                updateRealtimeMessage(`❌ Failed to send video frame: ${error.message}`);
             }
         }
 

@@ -125,6 +125,19 @@ class InputAudioBufferCommitMessage(RealtimeMessage):
     type: str = "input_audio_buffer.commit"
 
 
+class InputVideoBufferAppendMessage(RealtimeMessage):
+    """Video buffer append message."""
+
+    type: str = "input_video_buffer.append"
+    video: str  # base64 encoded video
+
+
+class InputVideoBufferCommitMessage(RealtimeMessage):
+    """Video buffer commit message."""
+
+    type: str = "input_video_buffer.commit"
+
+
 class ConversationItemCreateMessage(RealtimeMessage):
     """Create conversation item message."""
 
@@ -181,6 +194,7 @@ class ConnectionManager:
         self.sessions[session_id] = {
             "config": RealtimeConfig(),
             "audio_buffer": b"",
+            "video_buffer": b"",
             "conversation": [],
             "context": "",
         }
@@ -241,6 +255,39 @@ async def process_audio_chunk(audio_data: bytes, session_id: str) -> str:
 
     except Exception as e:
         logger.error(f"❌ Error processing audio chunk: {e}", exc_info=True)
+        raise
+
+
+async def process_video_chunk(video_data: bytes, session_id: str) -> str:
+    """Process video chunk for real-time inference."""
+    try:
+        logger.info(f"🎬 Processing video chunk: {len(video_data)} bytes for session: {session_id}")
+
+        # Use existing video processing
+        temp_video = Path(tempfile.mktemp(suffix=".mp4"))
+        with open(temp_video, "wb") as f:
+            f.write(video_data)
+
+        # Encode video for LLM
+        video_b64 = encode_video(temp_video)
+        temp_video.unlink()
+
+        # Get session context
+        session = manager.sessions.get(session_id, {})
+        config = session.get("config", RealtimeConfig())
+        instructions = config.instructions or "Analyze this video content."
+
+        # Process with LLM
+        response = get_response(
+            text_input=instructions,
+            video_b64s=[video_b64],
+        )
+
+        logger.info(f"🤖 Video processing complete for session: {session_id}")
+        return response.content
+
+    except Exception as e:
+        logger.error(f"❌ Error processing video chunk: {e}", exc_info=True)
         raise
 
 
@@ -421,6 +468,71 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                     response = {"event_id": event_id, "type": "input_audio_buffer.cleared"}
                     await manager.send_message(session_id, response)
 
+                elif event_type == "input_video_buffer.append":
+                    # Append video to buffer
+                    video_b64 = message.get("video", "")
+                    video_data = base64.b64decode(video_b64)
+                    manager.sessions[session_id]["video_buffer"] += video_data
+
+                    # Send acknowledgment
+                    response = {"event_id": event_id, "type": "input_video_buffer.appended"}
+                    logger.info(f"🎬 Video buffer appended ({len(video_data)} bytes) for session: {session_id}")
+                    await manager.send_message(session_id, response)
+
+                elif event_type == "input_video_buffer.commit":
+                    # Process accumulated video buffer
+                    video_buffer = manager.sessions[session_id]["video_buffer"]
+
+                    if video_buffer:
+                        try:
+                            # Process video and get response
+                            logger.info(f"🎬 Processing video buffer ({len(video_buffer)} bytes) for session: {session_id}")
+                            llm_response = await process_video_chunk(video_buffer, session_id)
+
+                            # Send response
+                            response = {
+                                "event_id": event_id,
+                                "type": "response.done",
+                                "response": {
+                                    "id": f"resp_{event_id}",
+                                    "object": "realtime.response",
+                                    "status": "completed",
+                                    "output": [
+                                        {
+                                            "id": f"item_{event_id}",
+                                            "object": "realtime.item",
+                                            "type": "message",
+                                            "role": "assistant",
+                                            "content": [{"type": "text", "text": llm_response}],
+                                        }
+                                    ],
+                                },
+                            }
+                            logger.info(f"🤖 Sending video response for session: {session_id}")
+                            logger.info(f"💬 AI Response: {llm_response[:100]}{'...' if len(llm_response) > 100 else ''}")
+                            await manager.send_message(session_id, response)
+
+                        except Exception as e:
+                            # Log technical error for developers
+                            logger.error(f"❌ Video processing error for session {session_id}: {e}")
+                            error_response = {
+                                "event_id": event_id,
+                                "type": "error",
+                                "error": {
+                                    "type": "server_error",
+                                    "code": "processing_failed",
+                                    "message": "Unable to process video. Please try again.",
+                                },
+                            }
+                            await manager.send_message(session_id, error_response)
+
+                    # Clear video buffer
+                    manager.sessions[session_id]["video_buffer"] = b""
+
+                    # Send buffer cleared confirmation
+                    response = {"event_id": event_id, "type": "input_video_buffer.cleared"}
+                    await manager.send_message(session_id, response)
+
                 elif event_type == "conversation.item.create":
                     # Handle conversation item creation (text, image, video)
                     item = message.get("item", {})
@@ -439,6 +551,10 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                                 image_b64 = content_item.get("image", "")
                                 size_mb = len(image_b64) * 3 / 4 / (1024 * 1024)  # Approximate size from base64
                                 logger.info(f"🖼️ UI: Image file uploaded - {size_mb:.2f} MB base64 data")
+                            elif content_type == "video":
+                                video_b64 = content_item.get("video", "")
+                                size_mb = len(video_b64) * 3 / 4 / (1024 * 1024)  # Approximate size from base64
+                                logger.info(f"🎬 UI: Video file uploaded - {size_mb:.2f} MB base64 data")
                             elif content_type == "text":
                                 text_content = content_item.get("text", "")
                                 logger.info(f"📝 UI: Text message sent - {len(text_content)} chars")
@@ -493,6 +609,7 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                             elif content_type == "video":
                                 video_b64 = content_item.get("video", "")
                                 video_data = base64.b64decode(video_b64)
+                                logger.debug(f"🎬 Extracted video: {len(video_data)} bytes")
 
                         try:
                             # Process using multimodal handler
@@ -585,6 +702,142 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
         manager.disconnect(session_id)
 
 
+@router.websocket("/ws/realtime/video")
+async def websocket_video_stream_endpoint(websocket: WebSocket):
+    """
+    Dedicated WebSocket endpoint for real-time video streaming and inference.
+
+    Optimized for live video processing with immediate frame-by-frame analysis.
+    """
+    try:
+        session_id = f"video_session_{id(websocket)}"
+        await websocket.accept()
+        logger.info(f"🎬 Video streaming WebSocket connected: {session_id}")
+
+        # Initialize video session
+        manager.sessions[session_id] = {
+            "config": RealtimeConfig(modalities=["video", "text"]),
+            "video_buffer": b"",
+            "frame_count": 0,
+            "conversation": [],
+            "context": "",
+        }
+
+        # Send connection confirmation
+        await websocket.send_json(
+            {
+                "type": "video_stream.connected",
+                "session_id": session_id,
+                "status": "ready",
+                "supported_formats": ["mp4", "webm", "avi"],
+            }
+        )
+
+        while True:
+            try:
+                # Receive video frame or command
+                message = await websocket.receive_json()
+                message_type = message.get("type")
+
+                if message_type == "video_frame":
+                    # Process individual video frame
+                    frame_data = base64.b64decode(message.get("frame", ""))
+                    frame_id = message.get("frame_id", manager.sessions[session_id]["frame_count"])
+
+                    manager.sessions[session_id]["frame_count"] += 1
+
+                    logger.debug(f"🎬 Processing video frame {frame_id}: {len(frame_data)} bytes")
+
+                    try:
+                        # Process frame
+                        temp_frame = Path(tempfile.mktemp(suffix=".jpg"))
+                        with open(temp_frame, "wb") as f:
+                            f.write(frame_data)
+
+                        # Use image processing for individual frames
+                        from ..media_processing import encode_image
+
+                        frame_b64 = encode_image(temp_frame)
+                        temp_frame.unlink()
+
+                        # Get frame analysis
+                        instructions = message.get("prompt", "Describe what you see in this video frame.")
+                        response = get_response(
+                            text_input=instructions,
+                            image_b64s=[frame_b64],
+                        )
+
+                        # Send frame analysis
+                        await websocket.send_json(
+                            {
+                                "type": "video_frame.analyzed",
+                                "frame_id": frame_id,
+                                "analysis": response.content,
+                                "timestamp": time.time(),
+                            }
+                        )
+
+                    except Exception as e:
+                        logger.error(f"❌ Frame processing error: {e}")
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "frame_id": frame_id,
+                                "message": "Frame processing failed",
+                            }
+                        )
+
+                elif message_type == "video_complete":
+                    # Process complete video
+                    video_data = base64.b64decode(message.get("video", ""))
+
+                    try:
+                        llm_response = await process_video_chunk(video_data, session_id)
+
+                        await websocket.send_json(
+                            {
+                                "type": "video_complete.analyzed",
+                                "analysis": llm_response,
+                                "timestamp": time.time(),
+                            }
+                        )
+
+                    except Exception as e:
+                        logger.error(f"❌ Video processing error: {e}")
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": "Video processing failed",
+                            }
+                        )
+
+                elif message_type == "ping":
+                    # Health check
+                    await websocket.send_json(
+                        {
+                            "type": "pong",
+                            "timestamp": time.time(),
+                        }
+                    )
+
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error in video stream: {e}")
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": "Invalid JSON format",
+                    }
+                )
+
+    except WebSocketDisconnect:
+        logger.info(f"🎬 Video streaming WebSocket disconnected: {session_id}")
+    except Exception as e:
+        logger.error(f"❌ Video streaming WebSocket error: {e}", exc_info=True)
+    finally:
+        if session_id in manager.sessions:
+            del manager.sessions[session_id]
+
+
 @router.get("/api/realtime/status")
 async def get_realtime_status():
     """Get real-time WebSocket status."""
@@ -592,7 +845,17 @@ async def get_realtime_status():
         "status": "active",
         "active_connections": len(manager.active_connections),
         "sessions": list(manager.sessions.keys()),
-        "endpoint": "/ws/realtime",
+        "endpoints": {
+            "multimodal": "/ws/realtime",
+            "video_streaming": "/ws/realtime/video",
+        },
         "supported_modalities": ["text", "audio", "image", "video"],
+        "video_features": {
+            "buffer_support": True,
+            "frame_by_frame": True,
+            "complete_video": True,
+            "streaming": True,
+        },
         "backend_compatible": True,
+        "openai_compatible": True,
     }
