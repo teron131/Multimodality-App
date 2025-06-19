@@ -462,7 +462,14 @@
                             <textarea id="screenAnalysisPrompt" placeholder="What should I analyze about your screen?" style="width: 100%; height: 60px; margin-top: 5px;">Describe what you see on the screen and any notable changes or activities.</textarea>
                         </div>
                         <div style="margin-top: 10px;">
-                            <label for="frameInterval">Analysis Interval:</label>
+                            <label for="screenMode">📹 Screen Analysis Mode:</label>
+                            <select id="screenMode" style="margin-left: 10px;" onchange="toggleScreenModeSettings()">
+                                <option value="frames">Screenshot Mode (periodic frames)</option>
+                                <option value="recording" selected>Recording Mode (clip when changes detected)</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 10px;" id="frameIntervalContainer">
+                            <label for="frameInterval">⏱️ Analysis Interval:</label>
                             <select id="frameInterval" style="margin-left: 10px;">
                                 <option value="1000">Every 1 second</option>
                                 <option value="3000" selected>Every 3 seconds</option>
@@ -471,6 +478,19 @@
                                 <option value="30000">Every 30 seconds</option>
                                 <option value="60000">Every 1 minute</option>
                             </select>
+                        </div>
+                        <div style="margin-top: 10px;" id="recordingSettingsContainer">
+                            <label for="stationaryThreshold">⏱️ Stop Recording After:</label>
+                            <select id="stationaryThreshold" style="margin-left: 10px;">
+                                <option value="2000">2 seconds of inactivity</option>
+                                <option value="3000">3 seconds of inactivity</option>
+                                <option value="5000" selected>5 seconds of inactivity</option>
+                                <option value="10000">10 seconds of inactivity</option>
+                                <option value="15000">15 seconds of inactivity</option>
+                            </select>
+                            <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                                📹 Longer recordings (5+ seconds) work better with AI analysis
+                            </div>
                         </div>
 
                         <div style="margin-top: 10px;">
@@ -487,6 +507,11 @@
                         <div style="margin-top: 10px;">
                             <button class="btn btn-secondary" onclick="testFrameCapture()" disabled id="testCaptureBtn" style="font-size: 0.9em;">🧪 Test Frame Capture</button>
                             <button class="btn btn-secondary" onclick="testScreenShareSupport()" id="testSupportBtn" style="font-size: 0.9em; margin-left: 5px;">🔍 Check Support</button>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <div id="apiStatus" style="padding: 8px; border-radius: 4px; font-size: 0.9em; background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                                🔄 API Status: Checking...
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -609,8 +634,24 @@
                 const response = await fetch('/api/status');
                 const status = await response.json();
                 updateOutput(`✅ System Status: ${status.message}\n🔧 Backend: ${status.backend}\n`);
+                
+                // Update API status indicator
+                const apiStatusDiv = document.getElementById('apiStatus');
+                if (apiStatusDiv) {
+                    apiStatusDiv.innerHTML = '✅ API Status: Operational';
+                    apiStatusDiv.style.backgroundColor = '#d4edda';
+                    apiStatusDiv.style.borderColor = '#c3e6cb';
+                }
             } catch (error) {
                 updateOutput(`❌ System Status Error: ${error.message}\n`);
+                
+                // Update API status indicator
+                const apiStatusDiv = document.getElementById('apiStatus');
+                if (apiStatusDiv) {
+                    apiStatusDiv.innerHTML = '❌ API Status: Error';
+                    apiStatusDiv.style.backgroundColor = '#f8d7da';
+                    apiStatusDiv.style.borderColor = '#f5c6cb';
+                }
             }
         }
 
@@ -644,20 +685,41 @@
             document.getElementById('progressFill').style.width = '0%';
         }
 
-        // The JavaScript modules export their functions directly to the global scope
-        // No need for wrapper functions - they're already available globally
+        // Toggle screen mode settings visibility
+        function toggleScreenModeSettings() {
+            const mode = document.getElementById('screenMode').value;
+            const frameIntervalContainer = document.getElementById('frameIntervalContainer');
+            const recordingSettingsContainer = document.getElementById('recordingSettingsContainer');
+            
+            if (mode === 'frames') {
+                frameIntervalContainer.style.display = 'block';
+                recordingSettingsContainer.style.display = 'none';
+            } else {
+                frameIntervalContainer.style.display = 'none';
+                recordingSettingsContainer.style.display = 'block';
+            }
+        }
         
-        // WebSocket connection functions are exported from websocket-manager.js as:
-        // window.connectWebSocket, window.disconnectWebSocket, etc.
-        
-        // File processing functions are exported from file-processor.js as:
-        // window.processText, window.processAudio, etc.
+        // Initialize screen mode settings
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleScreenModeSettings();
+        });
 
-        // Recording functions are exported from recording-manager.js as:
-        // window.startRecording, window.stopRecording, window.startRealtimeRecording, etc.
-        
-        // Screen sharing functions are exported from screen-sharing.js as:
-        // window.startScreenShare, window.stopScreenShare, window.testFrameCapture
+        // Update API status based on WebSocket responses
+        function updateApiStatus(isHealthy, message = '') {
+            const apiStatusDiv = document.getElementById('apiStatus');
+            if (!apiStatusDiv) return;
+            
+            if (isHealthy) {
+                apiStatusDiv.innerHTML = '✅ API Status: Operational';
+                apiStatusDiv.style.backgroundColor = '#d4edda';
+                apiStatusDiv.style.borderColor = '#c3e6cb';
+            } else {
+                apiStatusDiv.innerHTML = `⚠️ API Status: ${message || 'Issues Detected'}`;
+                apiStatusDiv.style.backgroundColor = '#fff3cd';
+                apiStatusDiv.style.borderColor = '#ffeaa7';
+            }
+        }
     </script>
 </body>
-</html> 
+</html>

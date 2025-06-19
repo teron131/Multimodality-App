@@ -126,10 +126,20 @@ class ScreenSharingManager {
         this.screenCanvas = null;
         this.screenContext = null;
         
-        // Analysis state
+        // Analysis state (frame mode)
         this.frameIntervalId = null;
         this.frameCounter = 0;
         this.lastFrameChecksum = null; // Keep for backward compatibility
+        
+        // Recording state (recording mode)
+        this.mediaRecorder = null;
+        this.recordedChunks = [];
+        this.isRecording = false;
+        this.recordingStartTime = null;
+        this.stationaryTimer = null;
+        this.lastChangeTime = Date.now();
+        this.recordingCounter = 0;
+        this.changeMonitoringInterval = null;
         
         // Optimized change detection
         this.changeDetector = new ChangeDetection();
@@ -139,7 +149,11 @@ class ScreenSharingManager {
         this.stopScreenShare = this.stopScreenShare.bind(this);
         this.connectToVideoStream = this.connectToVideoStream.bind(this);
         this.startFrameAnalysis = this.startFrameAnalysis.bind(this);
+        this.startRecordingMode = this.startRecordingMode.bind(this);
         this.captureAndAnalyzeFrame = this.captureAndAnalyzeFrame.bind(this);
+        this.monitorForChanges = this.monitorForChanges.bind(this);
+        this.startRecording = this.startRecording.bind(this);
+        this.stopRecording = this.stopRecording.bind(this);
         this.testFrameCapture = this.testFrameCapture.bind(this);
     }
 
@@ -162,7 +176,7 @@ class ScreenSharingManager {
                 video: {
                     width: { ideal: 1280, max: 1920 },  // Optimized: 1280p is good balance
                     height: { ideal: 720, max: 1080 },   // Optimized: 720p reduces data while maintaining quality
-                    frameRate: { ideal: 5, max: 8 }     // Optimized: Lower framerate for analysis (not real-time video)
+                    frameRate: { ideal: 12, max: 24 }     // Optimized: Lower framerate for analysis (not real-time video)
                 },
                 audio: false
             });
@@ -243,9 +257,14 @@ class ScreenSharingManager {
                 updateRealtimeMessage(`✅ Screen sharing active - Video: ${this.screenVideo.videoWidth}x${this.screenVideo.videoHeight} → Canvas: ${this.screenCanvas.width}x${this.screenCanvas.height}`);
                 updateRealtimeMessage(`🔧 Change detection: ${this.changeDetector.getConfig().changeThreshold * 100}% threshold, ${this.changeDetector.getConfig().threshold} RGB diff`);
                 
-                // Wait a bit more before starting frame analysis to ensure video is stable
+                // Wait a bit more before starting analysis to ensure video is stable
                 setTimeout(() => {
-                    this.startFrameAnalysis();
+                    const mode = document.getElementById('screenMode').value;
+                    if (mode === 'recording') {
+                        this.startRecordingMode();
+                    } else {
+                        this.startFrameAnalysis();
+                    }
                 }, 1000);
                 
                 document.getElementById('videoStreamBtn').disabled = true;
@@ -328,8 +347,42 @@ class ScreenSharingManager {
                 } else if (message.type === 'video_frame.analyzed') {
                     updateRealtimeMessage(`🖥️ Screen frame ${message.frame_id} analyzed`);
                     updateOutput(`🖥️ Screen Analysis: ${message.analysis}\n`);
+                } else if (message.type === 'video_complete.analyzed') {
+                    updateRealtimeMessage(`📹 Video analysis complete`);
+                    
+                    // Check if the response indicates an API error
+                    if (message.analysis && message.analysis.includes('temporarily unavailable')) {
+                        updateRealtimeMessage(`⚠️ Gemini API experiencing issues - video was processed but analysis failed`);
+                        updateOutput(`⚠️ API Status: ${message.analysis}\n`);
+                        // Update API status indicator
+                        if (typeof updateApiStatus === 'function') {
+                            updateApiStatus(false, 'Gemini API Issues');
+                        }
+                    } else if (message.analysis && message.analysis.includes('processing failed')) {
+                        updateRealtimeMessage(`❌ Video processing error - check format and try again`);
+                        updateOutput(`❌ Processing Error: ${message.analysis}\n`);
+                        if (typeof updateApiStatus === 'function') {
+                            updateApiStatus(false, 'Processing Failed');
+                        }
+                    } else {
+                        updateOutput(`📹 Video Analysis: ${message.analysis}\n`);
+                        // API is working if we got a successful response
+                        if (typeof updateApiStatus === 'function') {
+                            updateApiStatus(true);
+                        }
+                    }
                 } else if (message.type === 'error') {
                     updateRealtimeMessage(`❌ Analysis error: ${message.message}`);
+                    
+                    // Provide specific guidance for common errors
+                    if (message.message && message.message.includes('500')) {
+                        updateRealtimeMessage(`💡 Gemini API is experiencing temporary issues - try again in a few minutes`);
+                        if (typeof updateApiStatus === 'function') {
+                            updateApiStatus(false, '500 Server Errors');
+                        }
+                    } else if (message.message && message.message.includes('format')) {
+                        updateRealtimeMessage(`💡 Try adjusting video quality or recording shorter clips`);
+                    }
                 }
             };
             
@@ -358,6 +411,142 @@ class ScreenSharingManager {
         }, interval);
         
         updateRealtimeMessage(`🖥️ Frame analysis started (every ${interval/1000} seconds)`);
+    }
+
+    startRecordingMode() {
+        updateRealtimeMessage('📹 Starting recording mode - monitoring for changes...');
+        
+        // Start monitoring for changes every 200ms (5 FPS)
+        this.changeMonitoringInterval = setInterval(() => {
+            this.monitorForChanges();
+        }, 200);
+        
+        const stationaryThreshold = parseInt(document.getElementById('stationaryThreshold').value);
+        updateRealtimeMessage(`📹 Recording mode active - will record when changes detected, stop after ${stationaryThreshold}s of inactivity`);
+    }
+
+    async monitorForChanges() {
+        if (!this.screenVideo || !this.screenCanvas || !this.screenContext) {
+            return;
+        }
+
+        try {
+            const now = Date.now();
+            
+            // Draw current frame to canvas
+            this.screenContext.clearRect(0, 0, this.screenCanvas.width, this.screenCanvas.height);
+            this.screenContext.drawImage(this.screenVideo, 0, 0, this.screenCanvas.width, this.screenCanvas.height);
+            
+            // Get image data for change detection
+            const imageData = this.screenContext.getImageData(0, 0, this.screenCanvas.width, this.screenCanvas.height);
+            
+            // Detect changes
+            const result = this.changeDetector.detectChanges(imageData, this.screenCanvas.width, this.screenCanvas.height);
+            
+            if (result.hasChanged) {
+                // Changes detected - reset timer and continue recording
+                this.lastChangeTime = now;
+                
+                if (!this.isRecording) {
+                    await this.startRecording();
+                }
+                
+                updateRealtimeMessage(`🔄 Change detected: ${result.changePercentage.toFixed(1)}% - recording active`);
+            } else {
+                // No changes detected
+                if (this.isRecording) {
+                    const recordingDuration = ((now - this.recordingStartTime) / 1000).toFixed(1);
+                    
+                    // Check if we should stop recording (no changes for threshold time)
+                    const stationaryThreshold = parseInt(document.getElementById('stationaryThreshold').value);
+                    const timeSinceLastChange = now - this.lastChangeTime;
+                    
+                    if (timeSinceLastChange >= stationaryThreshold) {
+                        updateRealtimeMessage(`⏹️ No activity for ${stationaryThreshold/1000}s - stopping recording`);
+                        this.stopRecording();
+                    } else {
+                        const secondsRemaining = ((stationaryThreshold - timeSinceLastChange) / 1000).toFixed(1);
+                        updateRealtimeMessage(`⏸️ No change (${secondsRemaining}s) - recording: ${recordingDuration}s`);
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('Change monitoring error:', error);
+        }
+    }
+
+    async startRecording() {
+        if (this.isRecording || !this.screenStream) {
+            return;
+        }
+
+        try {
+            this.recordedChunks = [];
+            this.recordingStartTime = Date.now();
+            this.recordingCounter++;
+            
+            // Hardcode MP4 format - no browser checks
+            const mimeType = 'video/mp4';
+            
+            updateRealtimeMessage(`📹 Recording in MP4 format`);
+            
+            // Create MediaRecorder with hardcoded MP4 format
+            this.mediaRecorder = new MediaRecorder(this.screenStream, {
+                mimeType: mimeType,
+                videoBitsPerSecond: 5000000 // 5Mbps
+            });
+
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    this.recordedChunks.push(event.data);
+                }
+            };
+
+            this.mediaRecorder.onstop = async () => {
+                // Use MP4 MIME type for the blob
+                const blob = new Blob(this.recordedChunks, { type: 'video/mp4' });
+                const duration = ((Date.now() - this.recordingStartTime) / 1000).toFixed(1);
+                const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
+                
+                updateRealtimeMessage(`📹 Recording complete: ${duration}s, ${sizeMB}MB (MP4) - sending to AI...`);
+                
+                // Send the recorded video to AI for analysis
+                const prompt = document.getElementById('screenAnalysisPrompt').value || 'Analyze this screen recording and describe the workflow, changes, or activities shown';
+                await this.sendVideoToStream(blob, prompt);
+                
+                this.recordedChunks = [];
+            };
+
+            this.mediaRecorder.start(1000); // Collect data every second
+            this.isRecording = true;
+            
+            const recordingId = this.recordingCounter;
+            updateRealtimeMessage(`🔴 Recording started (#${recordingId}) - MP4 format`);
+            
+        } catch (error) {
+            updateRealtimeMessage(`❌ Failed to start recording: ${error.message}`);
+            console.error('Recording start error:', error);
+            this.isRecording = false;
+        }
+    }
+
+    async stopRecording() {
+        if (!this.isRecording || !this.mediaRecorder) {
+            return;
+        }
+
+        const duration = ((Date.now() - this.recordingStartTime) / 1000).toFixed(1);
+        updateRealtimeMessage(`⏹️ Stopping recording after ${duration}s...`);
+        
+        this.isRecording = false;
+        this.mediaRecorder.stop();
+        
+        // Clear stationary timer
+        if (this.stationaryTimer) {
+            clearTimeout(this.stationaryTimer);
+            this.stationaryTimer = null;
+        }
     }
 
     captureAndAnalyzeFrame() {
@@ -433,6 +622,24 @@ class ScreenSharingManager {
             this.frameIntervalId = null;
         }
 
+        // Stop recording mode monitoring
+        if (this.changeMonitoringInterval) {
+            clearInterval(this.changeMonitoringInterval);
+            this.changeMonitoringInterval = null;
+        }
+
+        // Stop any active recording
+        if (this.isRecording && this.mediaRecorder) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+        }
+
+        // Clear recording timers
+        if (this.stationaryTimer) {
+            clearTimeout(this.stationaryTimer);
+            this.stationaryTimer = null;
+        }
+
         // Stop screen stream
         if (this.screenStream) {
             this.screenStream.getTracks().forEach(track => track.stop());
@@ -457,7 +664,9 @@ class ScreenSharingManager {
         // Reset UI and change detector
         this.isVideoStreamConnected = false;
         this.frameCounter = 0;
+        this.recordingCounter = 0;
         this.lastFrameChecksum = null;
+        this.recordedChunks = [];
         this.changeDetector.reset();
         this.updateVideoStreamStatus('Screen sharing stopped', 'status-processing');
         updateRealtimeMessage('⏹️ Screen sharing stopped');

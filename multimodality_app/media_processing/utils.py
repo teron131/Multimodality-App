@@ -20,7 +20,7 @@ ALL_AUDIO_FORMATS = SUPPORTED_AUDIO_FORMATS | ADDITIONAL_AUDIO_FORMATS
 SUPPORTED_VIDEO_FORMATS = {".mp4", ".mpeg", ".mov", ".avi", ".flv", ".mpg", ".webm", ".wmv", ".3gp"}
 
 # MIME type mappings for web uploads
-IMAGE_MIME_TYPES = {
+IMAGE_MIME_MAPPINGS = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
     "image/jpg": ".jpg",
@@ -29,7 +29,7 @@ IMAGE_MIME_TYPES = {
     "image/heif": ".heif",
 }
 
-AUDIO_MIME_TYPES = {
+AUDIO_MIME_MAPPINGS = {
     "audio/webm": ".webm",
     "audio/wav": ".wav",
     "audio/mp3": ".mp3",
@@ -41,7 +41,7 @@ AUDIO_MIME_TYPES = {
     "audio/aiff": ".aiff",
 }
 
-VIDEO_MIME_TYPES = {
+VIDEO_MIME_MAPPINGS = {
     "video/mp4": ".mp4",
     "video/mpeg": ".mpeg",
     "video/mov": ".mov",
@@ -52,6 +52,11 @@ VIDEO_MIME_TYPES = {
     "video/wmv": ".wmv",
     "video/3gpp": ".3gp",
 }
+
+# MIME type sets for validation (used by validate_file_upload)
+AUDIO_MIME_TYPES = set(AUDIO_MIME_MAPPINGS.keys())
+IMAGE_MIME_TYPES = set(IMAGE_MIME_MAPPINGS.keys())
+VIDEO_MIME_TYPES = set(VIDEO_MIME_MAPPINGS.keys())
 
 
 def is_image_format_supported(file_path: str | Path) -> bool:

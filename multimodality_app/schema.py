@@ -69,6 +69,11 @@ class ImageUploadResponse(UploadResponse):
     image_b64: str
 
 
+class VideoUploadResponse(UploadResponse):
+    video_b64: str
+    video_info: Dict
+
+
 # Processing Request Models
 class ProcessingRequest(BaseModel):
     """Base processing request model."""

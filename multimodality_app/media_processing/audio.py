@@ -6,7 +6,6 @@ Handles audio file conversion, optimization, and base64 encoding for LLM consump
 
 import base64
 import logging
-import struct
 import tempfile
 import wave
 from pathlib import Path

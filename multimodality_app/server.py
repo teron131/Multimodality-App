@@ -13,14 +13,7 @@ from fastapi.staticfiles import StaticFiles
 # Import logging configuration first to set up logging
 from . import logging_config  # noqa: F401
 from .config import APP_NAME, SERVER_HOST, SERVER_PORT, STATIC_DIR
-from .routes import (
-    audio_router,
-    image_router,
-    main_router,
-    multimodal_router,
-    realtime_router,
-    video_router,
-)
+from .routes import llm_router, main_router, processing_router, realtime_router
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +32,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static"
 
 # Include route modules
 app.include_router(main_router)
-app.include_router(audio_router)
-app.include_router(image_router)
-app.include_router(video_router)
-app.include_router(multimodal_router)
+app.include_router(llm_router)
+app.include_router(processing_router)
 app.include_router(realtime_router)
 
 logger.info(f"🚀 {APP_NAME} server initialized")

@@ -12,7 +12,9 @@ from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
-from .media_processing import encode_audio, encode_image, encode_video
+from .media_processing.audio import encode_audio
+from .media_processing.image import encode_image
+from .media_processing.video import encode_video
 
 logger = logging.getLogger(__name__)
 

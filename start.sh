@@ -229,7 +229,7 @@ start_server() {
     # Clean up any existing processes on the main server port
     kill_port $port "existing multimodality server"
     
-    echo -e "${GREEN}🚀 Starting server on http://127.0.0.1:$port${NC}"
+    echo -e "${GREEN}🚀 Starting server on http://localhost:$port${NC}"
     echo -e "${YELLOW}📋 Press Ctrl+C to stop${NC}"
     echo
     
@@ -237,7 +237,7 @@ start_server() {
     
     if command -v python3 > /dev/null; then
         python3 -m uvicorn multimodality_app.server:app \
-            --host 127.0.0.1 \
+            --host localhost \
             --port "$port" \
             --reload
     else

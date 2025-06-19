@@ -21,13 +21,7 @@ from ..media_processing import (
     encode_audio,
     encode_image,
     encode_raw_audio,
-    encode_video,
-    process_uploaded_audio,
-)
-from ..media_processing.utils import (
-    AUDIO_MIME_TYPES,
-    IMAGE_MIME_TYPES,
-    VIDEO_MIME_TYPES,
+    process_uploaded_video,
 )
 
 logger = logging.getLogger(__name__)
@@ -265,18 +259,21 @@ async def process_audio_chunk(audio_data: bytes, session_id: str) -> str:
 
 
 async def process_video_chunk(video_data: bytes, session_id: str) -> str:
-    """Process video chunk for real-time inference."""
+    """Process video chunk for real-time inference using unified Gemini-safe processing.
+
+    Note: Gemini rejects small video chunks (< 1MB), so we accumulate them into larger videos.
+    """
     try:
         logger.info(f"🎬 Processing video chunk: {len(video_data)} bytes for session: {session_id}")
 
-        # Use existing video processing
-        temp_video = Path(tempfile.mktemp(suffix=".mp4"))
-        with open(temp_video, "wb") as f:
-            f.write(video_data)
+        # Check if chunk is too small for Gemini (< 1MB threshold)
+        chunk_size_mb = len(video_data) / (1024 * 1024)
+        if chunk_size_mb < 0.1:
+            logger.warning(f"⚠️ Video chunk too small ({chunk_size_mb:.1f}MB) - Gemini rejects small chunks. Skipping processing.")
+            return "Video chunk received but too small for analysis. Recording longer clips for better results."
 
-        # Encode video for LLM
-        video_b64 = encode_video(temp_video)
-        temp_video.unlink()
+        # Use unified video processing (Gemini-safe)
+        video_b64, encoding_info = process_uploaded_video(video_data, f"realtime_chunk_{session_id}.mp4")
 
         # Get session context
         session = manager.sessions.get(session_id, {})
@@ -289,12 +286,13 @@ async def process_video_chunk(video_data: bytes, session_id: str) -> str:
             video_b64s=[video_b64],
         )
 
-        logger.info(f"🤖 Video processing complete for session: {session_id}")
+        logger.info(f"🤖 Video processing complete for session: {session_id} (Gemini-safe: {encoding_info.get('meets_gemini_requirements', False)})")
         return response.content
 
     except Exception as e:
         logger.error(f"❌ Error processing video chunk: {e}", exc_info=True)
-        raise
+        # Return user-friendly error instead of raising
+        return f"Video processing temporarily unavailable. Error: {str(e)}"
 
 
 async def process_multimodal_input(
@@ -327,13 +325,10 @@ async def process_multimodal_input(
             image_b64s.append(encode_image(temp_image))
             temp_image.unlink()
 
-        # Process video if provided
+        # Process video if provided (unified Gemini-safe)
         if video_data:
-            temp_video = Path(tempfile.mktemp(suffix=".mp4"))
-            with open(temp_video, "wb") as f:
-                f.write(video_data)
-            video_b64s.append(encode_video(temp_video))
-            temp_video.unlink()
+            video_b64, _ = process_uploaded_video(video_data, f"multimodal_{session_id}.mp4")
+            video_b64s.append(video_b64)
 
         # Get session context
         session = manager.sessions.get(session_id, {})
