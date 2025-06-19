@@ -464,32 +464,24 @@
                         <div style="margin-top: 10px;">
                             <label for="frameInterval">Analysis Interval:</label>
                             <select id="frameInterval" style="margin-left: 10px;">
-                                <option value="1000">Every 1 second (High frequency)</option>
-                                <option value="3000" selected>Every 3 seconds (Optimal)</option>
-                                <option value="5000">Every 5 seconds (Balanced)</option>
-                                <option value="10000">Every 10 seconds (Conservative)</option>
-                                <option value="30000">Every 30 seconds (Minimal)</option>
-                                <option value="60000">Every 1 minute (Monitoring)</option>
+                                <option value="1000">Every 1 second</option>
+                                <option value="3000" selected>Every 3 seconds</option>
+                                <option value="5000">Every 5 seconds</option>
+                                <option value="10000">Every 10 seconds</option>
+                                <option value="30000">Every 30 seconds</option>
+                                <option value="60000">Every 1 minute</option>
                             </select>
                         </div>
+
                         <div style="margin-top: 10px;">
-                            <label for="imageQuality">Image Quality:</label>
-                            <select id="imageQuality" style="margin-left: 10px;">
-                                <option value="0.6">High compression (smaller files)</option>
-                                <option value="0.75" selected>Balanced (recommended)</option>
-                                <option value="0.85">High quality (larger files)</option>
-                                <option value="0.95">Maximum quality</option>
-                            </select>
-                        </div>
-                        <div style="margin-top: 10px;">
-                            <label for="changeThreshold">Change Detection Sensitivity:</label>
+                            <label for="changeThreshold">🔍 Change Detection (% of pixels that must change):</label>
                             <select id="changeThreshold" style="margin-left: 10px;">
-                                <option value="1">Very sensitive (1% change)</option>
-                                <option value="3">Sensitive (3% change)</option>
-                                <option value="5" selected>Balanced (5% change)</option>
-                                <option value="10">Conservative (10% change)</option>
-                                <option value="20">Very conservative (20% change)</option>
-                                <option value="0">Disabled (analyze all frames)</option>
+                                <option value="1">1% threshold (text edits, cursor movement)</option>
+                                <option value="3">3% threshold (typing, small UI changes)</option>
+                                <option value="5" selected>5% threshold (window switches, scrolling)</option>
+                                <option value="10">10% threshold (major content changes only)</option>
+                                <option value="20">20% threshold (entire screen changes)</option>
+                                <option value="0">0% threshold (analyze every frame, expensive)</option>
                             </select>
                         </div>
                         <div style="margin-top: 10px;">

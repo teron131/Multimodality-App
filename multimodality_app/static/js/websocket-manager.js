@@ -92,7 +92,7 @@ class WebSocketManager {
             'sendTextBtn', 'sendAudioBtn', 'sendImageBtn', 'sendVideoBtn',
             'realtimeAudioFile', 'realtimeImageFile', 'realtimeVideoFile',
             'realtimeVideoPrompt', 'videoStreamBtn', 'screenAnalysisPrompt', 
-            'frameInterval', 'imageQuality', 'changeThreshold', 'testCaptureBtn',
+            'frameInterval', 'changeThreshold', 'testCaptureBtn',
             'realtimeRecordBtn'
         ];
         
