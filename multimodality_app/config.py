@@ -21,8 +21,8 @@ SERVER_PORT = int(os.getenv("SERVER_PORT", "3030"))
 
 # LLM Backend Configuration
 LLM_BACKEND = os.getenv("LLM_BACKEND", "gemini").lower()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-LLAMA_MODEL = os.getenv("LLAMA_MODEL", "llama")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL")
+LLAMA_MODEL = os.getenv("LLAMA_MODEL")
 BACKEND_PORT = os.getenv("BACKEND_PORT", "8080")
 
 # API Keys
