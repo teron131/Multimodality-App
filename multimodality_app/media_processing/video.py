@@ -1,3 +1,9 @@
+"""
+Video processing and encoding for multimodal AI.
+
+Handles video file optimization, metadata extraction, and base64 encoding for LLM consumption.
+"""
+
 import base64
 import logging
 import tempfile

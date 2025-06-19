@@ -1,3 +1,9 @@
+"""
+Configuration management for the multimodality app.
+
+Centralized configuration with environment variables, paths, and processing defaults.
+"""
+
 import os
 from pathlib import Path
 

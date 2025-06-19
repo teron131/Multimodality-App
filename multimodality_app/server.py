@@ -1,3 +1,9 @@
+"""
+FastAPI server initialization and startup.
+
+Main entry point for the multimodality app with route registration and static file serving.
+"""
+
 import logging
 
 from fastapi import FastAPI

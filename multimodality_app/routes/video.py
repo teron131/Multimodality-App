@@ -1,3 +1,9 @@
+"""
+Video processing API endpoints.
+
+Handles video file uploads and unified video processing with LLM analysis.
+"""
+
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile

@@ -1,3 +1,9 @@
+"""
+LLM integration with support for multiple backends (Gemini, Llama).
+
+Provides unified interface for multimodal AI processing with automatic backend switching.
+"""
+
 import logging
 import os
 from pathlib import Path

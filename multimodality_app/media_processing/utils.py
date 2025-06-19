@@ -1,3 +1,9 @@
+"""
+Media format validation and constants.
+
+Defines supported formats and provides validation utilities for media files.
+"""
+
 from pathlib import Path
 
 # Gemini-supported image formats

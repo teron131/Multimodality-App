@@ -1,3 +1,9 @@
+"""
+Real-time WebSocket endpoints for live multimodal processing.
+
+Provides OpenAI-compatible real-time API for streaming audio, video, and interactive processing.
+"""
+
 import asyncio
 import base64
 import json

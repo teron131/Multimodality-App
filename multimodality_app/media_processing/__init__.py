@@ -1,3 +1,9 @@
+"""
+Media processing module exports.
+
+Provides unified interface for audio, image, and video processing functions.
+"""
+
 from .audio import encode_audio, encode_raw_audio, process_uploaded_audio
 from .image import encode_image, process_uploaded_image
 from .utils import *

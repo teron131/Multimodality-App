@@ -1,3 +1,9 @@
+"""
+Logging configuration with media data filtering.
+
+Prevents binary data from appearing in logs while preserving useful debugging information.
+"""
+
 import json
 import logging
 import logging.handlers

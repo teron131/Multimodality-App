@@ -1,3 +1,9 @@
+"""
+Image processing API endpoints.
+
+Handles image file uploads and unified image processing with LLM analysis.
+"""
+
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile

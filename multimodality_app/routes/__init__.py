@@ -1,3 +1,9 @@
+"""
+API route modules for multimodal processing.
+
+Exports all route handlers for the FastAPI application.
+"""
+
 from .audio import router as audio_router
 from .image import router as image_router
 from .main import router as main_router

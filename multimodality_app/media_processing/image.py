@@ -1,3 +1,9 @@
+"""
+Image processing and encoding for multimodal AI.
+
+Handles image file validation and base64 encoding for LLM consumption.
+"""
+
 import base64
 import logging
 import tempfile

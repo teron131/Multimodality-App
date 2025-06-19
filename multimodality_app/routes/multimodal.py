@@ -1,3 +1,9 @@
+"""
+Multimodal processing API endpoints.
+
+Handles combined audio and image processing with unified LLM analysis.
+"""
+
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile

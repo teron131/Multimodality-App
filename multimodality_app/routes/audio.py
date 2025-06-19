@@ -1,3 +1,9 @@
+"""
+Audio processing API endpoints.
+
+Handles audio file uploads and unified audio processing with LLM analysis.
+"""
+
 from fastapi import APIRouter, File, UploadFile
 
 from ..config import DEFAULT_AUDIO_PROMPT

@@ -1,3 +1,9 @@
+"""
+Pydantic models for API request and response schemas.
+
+Defines data structures for all API endpoints with validation and serialization.
+"""
+
 from typing import Dict, Optional
 
 from pydantic import BaseModel, Field

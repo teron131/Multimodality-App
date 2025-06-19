@@ -1,3 +1,9 @@
+"""
+Audio processing and encoding for multimodal AI.
+
+Handles audio file conversion, optimization, and base64 encoding for LLM consumption.
+"""
+
 import base64
 import logging
 import struct

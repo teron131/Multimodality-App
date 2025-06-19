@@ -1,3 +1,9 @@
+"""
+Route utility functions and error handling.
+
+Provides standardized response formatting and error handling for API endpoints.
+"""
+
 import logging
 from typing import Any, Dict, Optional
 

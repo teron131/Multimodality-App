@@ -1,3 +1,9 @@
+"""
+Main API routes for system configuration and text processing.
+
+Provides health checks, configuration endpoints, and basic text analysis.
+"""
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
