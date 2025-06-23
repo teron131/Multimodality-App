@@ -25,25 +25,45 @@ Located in [multimodality_app/media_processing/](mdc:multimodality_app/media_pro
 
 ### API Routes
 Located in [multimodality_app/routes/](mdc:multimodality_app/routes):
-- [main.py](mdc:multimodality_app/routes/main.py) - Core routing logic
-- [audio.py](mdc:multimodality_app/routes/audio.py) - Audio-related endpoints
-- [image.py](mdc:multimodality_app/routes/image.py) - Image processing endpoints
-- [video.py](mdc:multimodality_app/routes/video.py) - Video processing endpoints
-- [multimodal.py](mdc:multimodality_app/routes/multimodal.py) - Combined multimodal operations
+- [main.py](mdc:multimodality_app/routes/main.py) - Core routing logic and system endpoints
+- [processing.py](mdc:multimodality_app/routes/processing.py) - Media processing endpoints (audio, image, video)
+- [llm.py](mdc:multimodality_app/routes/llm.py) - LLM integration and chat endpoints
 - [realtime.py](mdc:multimodality_app/routes/realtime.py) - Real-time streaming and WebSocket endpoints
+- [utils.py](mdc:multimodality_app/routes/utils.py) - Shared routing utilities
 
 ### Infrastructure
 - [llm.py](mdc:multimodality_app/llm.py) - LLM integration and model switching logic
 - [logging_config.py](mdc:multimodality_app/logging_config.py) - Application logging setup
 - [pyproject.toml](mdc:pyproject.toml) - UV-managed dependencies and project configuration
 
+### Frontend Assets
+Located in [multimodality_app/static/](mdc:multimodality_app/static):
+- [index.html](mdc:multimodality_app/static/index.html) - Main web interface
+- [js/](mdc:multimodality_app/static/js) - Client-side JavaScript modules:
+  - [file-processor.js](mdc:multimodality_app/static/js/file-processor.js) - File handling and processing
+  - [recording-manager.js](mdc:multimodality_app/static/js/recording-manager.js) - Audio/video recording
+  - [screen-sharing.js](mdc:multimodality_app/static/js/screen-sharing.js) - Screen capture functionality
+  - [websocket-manager.js](mdc:multimodality_app/static/js/websocket-manager.js) - Real-time communication
+  - [utils.js](mdc:multimodality_app/static/js/utils.js) - Shared utilities
+
 ## 🔄 Model Compatibility Strategy
 All implementations should maintain **OpenAI API compatibility** while providing **Gemini-equivalent functionality**:
-- Use OpenAI-style request/response formats
-- Support model switching via configuration
+- Use OpenAI-style request/response formats defined in schema.py
+- Support model switching via configuration in config.py
 - Maintain consistent error handling patterns
-- Enable drop-in replacement of AI providers
+- Enable drop-in replacement of AI providers through llm.py
 
-## 📚 Documentation
-- [docs/](mdc:docs) - Technical documentation and API guides
+## 📚 Documentation & Resources
+- [docs/](mdc:docs) - Technical documentation and API guides:
+  - [llama-server.md](mdc:docs/llama-server.md) - Local LLaMA server setup
+  - [realtime_api.md](mdc:docs/realtime_api.md) - Real-time API documentation
+  - [realtime-websocket.md](mdc:docs/realtime-websocket.md) - WebSocket implementation guide
 - [README.md](mdc:README.md) - Project overview and setup instructions
+- [api_examples.ipynb](mdc:api_examples.ipynb) - Interactive API usage examples
+
+## 🗂️ Data Directories
+- [audio/](mdc:audio) - Audio file storage and processing
+- [image/](mdc:image) - Image file storage and processing  
+- [video/](mdc:video) - Video file storage and processing
+- [logs/](mdc:logs) - Application logs and debugging info
+- [llama-cuda/](mdc:llama-cuda) - Local CUDA-optimized LLaMA setup
