@@ -3,8 +3,8 @@ API route modules for multimodal processing.
 
 Clean Architecture:
 - main.py: System configuration, health checks, static files
-- llm.py: All LLM inference endpoints (process-*-unified)
-- processing.py: Unified media encoding endpoints
+- llm.py: All LLM inference endpoints (invoke-*)
+- processing.py: Media encoding endpoints (encode-*)
 - realtime.py: WebSocket streaming endpoints
 
 Exports all route handlers for the FastAPI application.
@@ -18,6 +18,6 @@ from .realtime import router as realtime_router
 __all__ = [
     "main_router",  # System configuration + health checks
     "llm_router",  # LLM inference endpoints
-    "processing_router",  # Unified media encoding
+    "processing_router",  # Media encoding
     "realtime_router",  # WebSocket streaming
 ]

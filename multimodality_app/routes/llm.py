@@ -7,8 +7,7 @@ Uses standardized response models from schema.py for consistency.
 
 import base64
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from fastapi import APIRouter, File, UploadFile
 
 from ..config import (
     DEFAULT_AUDIO_PROMPT,
@@ -17,211 +16,181 @@ from ..config import (
     DEFAULT_VIDEO_PROMPT,
 )
 from ..llm import get_response
-from ..media_processing import (
-    process_uploaded_audio,
-    process_uploaded_image,
-    process_uploaded_video,
+from ..media_processing import process_uploaded_video
+from ..schema import LLM
+from .utils import (
+    handle_processing_error,
+    log_llm_response,
+    log_multimodal_response,
+    log_processing_start,
+    log_upload_info,
+    process_multimodal_files,
+    process_single_file,
 )
-from ..media_processing.utils import (
-    AUDIO_MIME_TYPES,
-    IMAGE_MIME_TYPES,
-    VIDEO_MIME_TYPES,
-)
-from ..schema import MultimodalResponse, UnifiedProcessResponse
-from .utils import handle_processing_error, log_upload_info, validate_file_upload
 
 router = APIRouter()
 
 
-class TextProcessRequest(BaseModel):
-    text: str
-    prompt: str = "Please analyze this text and provide insights."
-
-
-class VideoBase64Request(BaseModel):
-    video_b64: str
-    filename: str
-    prompt: str = DEFAULT_VIDEO_PROMPT
-
-
-class MultimodalAnalysisRequest(BaseModel):
-    audio_file: UploadFile = None
-    image_file: UploadFile = None
-    video_file: UploadFile = None
-    prompt: str = DEFAULT_MULTIMODAL_PROMPT
-
-
-@router.post("/api/process-text", response_model=MultimodalResponse)
-async def process_text(request: TextProcessRequest):
-    """Process text input directly with LLM."""
+@router.post("/api/invoke-text", response_model=LLM.Response.Text)
+async def invoke_text(request: LLM.Request.Text):
+    """Invoke LLM with text input for analysis."""
     try:
-        # Get LLM response for text
-        analysis = await get_response(text=request.text, prompt=request.prompt)
+        log_processing_start("text analysis", "text_input", len(request.text.encode()))
 
-        return MultimodalResponse(
+        # Get LLM response for text
+        analysis = get_response(text_input=request.text + "\n\n" + request.prompt)
+
+        # Log with output preview
+        log_llm_response("text analysis", "text_input", analysis.content, len(request.text.encode()))
+
+        return LLM.Response.Text(
             status="success",
-            message="Text processed successfully",
+            message="Text analyzed successfully",
             content_type="text/plain",
             size_bytes=len(request.text.encode()),
-            analysis=analysis,
+            analysis=analysis.content,
         )
     except Exception as e:
-        raise handle_processing_error("Text processing", e)
+        raise handle_processing_error("Text analysis", e)
 
 
-@router.post("/api/process-audio-unified", response_model=UnifiedProcessResponse)
-async def process_audio_unified(audio: UploadFile = File(...), prompt: str = DEFAULT_AUDIO_PROMPT):
-    """Upload audio file and analyze with LLM."""
-    validate_file_upload(audio.filename, audio.content_type, AUDIO_MIME_TYPES)
-
+@router.post("/api/invoke-audio", response_model=LLM.Response.Audio)
+async def invoke_audio(audio: UploadFile = File(...), prompt: str = DEFAULT_AUDIO_PROMPT):
+    """Upload audio file and invoke LLM for analysis."""
     try:
-        # Read and process audio
-        audio_data = await audio.read()
-        log_upload_info(audio.filename, len(audio_data), "audio processing with LLM")
+        audio_b64, size_bytes = await process_single_file(audio, "audio", "audio analysis with LLM")
 
-        # Encode audio
-        audio_b64 = process_uploaded_audio(audio_data, audio.filename)
+        log_processing_start("audio analysis", audio.filename, size_bytes)
 
         # Get LLM analysis
-        analysis = await get_response(audio_b64=audio_b64, prompt=prompt)
+        analysis = get_response(audio_b64s=[audio_b64], text_input=prompt)
 
-        return UnifiedProcessResponse(
+        # Log with output preview
+        log_llm_response("audio analysis", audio.filename, analysis.content, size_bytes)
+
+        return LLM.Response.Audio(
             status="success",
-            message="Audio processed and analyzed successfully",
-            transcription=analysis,
-            size_bytes=len(audio_data),
+            message="Audio analyzed successfully",
+            transcription=analysis.content,
+            size_bytes=size_bytes,
         )
     except Exception as e:
-        raise handle_processing_error("Audio processing with LLM", e)
+        raise handle_processing_error("Audio analysis", e)
 
 
-@router.post("/api/process-image-unified", response_model=MultimodalResponse)
-async def process_image_unified(image: UploadFile = File(...), prompt: str = DEFAULT_IMAGE_PROMPT):
-    """Upload image file and analyze with LLM."""
-    validate_file_upload(image.filename, image.content_type, IMAGE_MIME_TYPES)
-
+@router.post("/api/invoke-image", response_model=LLM.Response.Image)
+async def invoke_image(image: UploadFile = File(...), prompt: str = DEFAULT_IMAGE_PROMPT):
+    """Upload image file and invoke LLM for analysis."""
     try:
-        # Read and process image
-        image_data = await image.read()
-        log_upload_info(image.filename, len(image_data), "image processing with LLM")
+        image_b64, size_bytes = await process_single_file(image, "image", "image analysis with LLM")
 
-        # Encode image
-        image_b64 = process_uploaded_image(image_data, image.filename)
+        log_processing_start("image analysis", image.filename, size_bytes)
 
         # Get LLM analysis
-        analysis = await get_response(image_b64=image_b64, prompt=prompt)
+        analysis = get_response(image_b64s=[image_b64], text_input=prompt)
 
-        return MultimodalResponse(
+        # Log with output preview
+        log_llm_response("image analysis", image.filename, analysis.content, size_bytes)
+
+        return LLM.Response.Image(
             status="success",
-            message="Image processed and analyzed successfully",
+            message="Image analyzed successfully",
             content_type="image",
-            size_bytes=len(image_data),
-            analysis=analysis,
+            size_bytes=size_bytes,
+            analysis=analysis.content,
         )
     except Exception as e:
-        raise handle_processing_error("Image processing with LLM", e)
+        raise handle_processing_error("Image analysis", e)
 
 
-@router.post("/api/process-video-unified", response_model=MultimodalResponse)
-async def process_video_unified(video: UploadFile = File(...), prompt: str = DEFAULT_VIDEO_PROMPT):
-    """Upload video file and analyze with LLM."""
-    validate_file_upload(video.filename, video.content_type, VIDEO_MIME_TYPES)
-
+@router.post("/api/invoke-video", response_model=LLM.Response.Video)
+async def invoke_video(video: UploadFile = File(...), prompt: str = DEFAULT_VIDEO_PROMPT):
+    """Upload video file and invoke LLM for analysis."""
     try:
-        # Read and process video
+        # Use direct processing for video to maintain video_info
         video_data = await video.read()
-        log_upload_info(video.filename, len(video_data), "video processing with LLM")
+        log_upload_info(video.filename, len(video_data), "video analysis with LLM")
+        log_processing_start("video analysis", video.filename, len(video_data))
 
         # Encode video with Gemini-safe processing
         video_b64, encoding_info = process_uploaded_video(video_data, video.filename)
 
         # Get LLM analysis
-        analysis = await get_response(video_b64=video_b64, prompt=prompt)
+        analysis = get_response(video_b64s=[video_b64], text_input=prompt)
 
-        return MultimodalResponse(
+        # Log with output preview
+        log_llm_response("video analysis", video.filename, analysis.content, len(video_data))
+
+        return LLM.Response.Video(
             status="success",
-            message="Video processed and analyzed successfully",
+            message="Video analyzed successfully",
             content_type="video",
             size_bytes=len(video_data),
-            analysis=analysis,
+            analysis=analysis.content,
         )
     except Exception as e:
-        raise handle_processing_error("Video processing with LLM", e)
+        raise handle_processing_error("Video analysis", e)
 
 
-@router.post("/api/process-video-base64", response_model=MultimodalResponse)
-async def process_video_base64(request: VideoBase64Request):
-    """Process base64 video data with LLM analysis."""
+@router.post("/api/invoke-video-base64", response_model=LLM.Response.Video)
+async def invoke_video_base64(request: LLM.Request.VideoBase64):
+    """Invoke LLM with base64 video data for analysis."""
     try:
         # Decode base64 to get video data
         video_data = base64.b64decode(request.video_b64)
-        log_upload_info(request.filename, len(video_data), "base64 video processing with LLM")
+        log_upload_info(request.filename, len(video_data), "base64 video analysis with LLM")
+        log_processing_start("base64 video analysis", request.filename, len(video_data))
 
         # Encode video with Gemini-safe processing
         video_b64, encoding_info = process_uploaded_video(video_data, request.filename)
 
         # Get LLM analysis
-        analysis = await get_response(video_b64=video_b64, prompt=request.prompt)
+        analysis = get_response(video_b64s=[video_b64], text_input=request.prompt)
 
-        return MultimodalResponse(
+        # Log with output preview
+        log_llm_response("base64 video analysis", request.filename, analysis.content, len(video_data))
+
+        return LLM.Response.Video(
             status="success",
-            message="Base64 video processed and analyzed successfully",
+            message="Base64 video analyzed successfully",
             content_type="video",
             size_bytes=len(video_data),
-            analysis=analysis,
+            analysis=analysis.content,
         )
     except Exception as e:
-        raise handle_processing_error("Base64 video processing with LLM", e)
+        raise handle_processing_error("Base64 video analysis", e)
 
 
-@router.post("/api/process-multimodal-unified", response_model=MultimodalResponse)
-async def process_multimodal_unified(
-    request: MultimodalAnalysisRequest,
+@router.post("/api/invoke-multimodal", response_model=LLM.Response.Multimodal)
+async def invoke_multimodal(
+    prompt: str = DEFAULT_MULTIMODAL_PROMPT,
     audio: UploadFile = File(None),
     image: UploadFile = File(None),
     video: UploadFile = File(None),
 ):
-    """Process multiple media files together with LLM analysis."""
-    if not any([audio, image, video]):
-        raise HTTPException(status_code=400, detail="At least one media file must be provided")
-
+    """Upload multiple media files and invoke LLM for multimodal analysis."""
     try:
-        media_data = {}
-        total_size = 0
+        result = await process_multimodal_files(audio, image, video, "multimodal analysis with LLM")
 
-        # Process audio if provided
-        if audio:
-            validate_file_upload(audio.filename, audio.content_type, AUDIO_MIME_TYPES)
-            audio_data = await audio.read()
-            media_data["audio_b64"] = process_uploaded_audio(audio_data, audio.filename)
-            total_size += len(audio_data)
-
-        # Process image if provided
-        if image:
-            validate_file_upload(image.filename, image.content_type, IMAGE_MIME_TYPES)
-            image_data = await image.read()
-            media_data["image_b64"] = process_uploaded_image(image_data, image.filename)
-            total_size += len(image_data)
-
-        # Process video if provided
-        if video:
-            validate_file_upload(video.filename, video.content_type, VIDEO_MIME_TYPES)
-            video_data = await video.read()
-            video_b64, _ = process_uploaded_video(video_data, video.filename)
-            media_data["video_b64"] = video_b64
-            total_size += len(video_data)
-
-        log_upload_info("multimodal", total_size, "multimodal processing with LLM")
+        log_processing_start("multimodal analysis", "multimodal_content", result["total_size"])
 
         # Get LLM analysis with all media
-        analysis = await get_response(prompt=request.prompt, **media_data)
+        analysis = get_response(
+            text_input=prompt,
+            audio_b64s=[result["audio_b64"]] if result["audio_b64"] else None,
+            image_b64s=[result["image_b64"]] if result["image_b64"] else None,
+            video_b64s=[result["video_b64"]] if result["video_b64"] else None,
+        )
 
-        return MultimodalResponse(
+        # Log with output preview
+        log_multimodal_response("multimodal analysis", result["content_types"], analysis.content, result["total_size"])
+
+        return LLM.Response.Multimodal(
             status="success",
-            message="Multimodal content processed and analyzed successfully",
+            message="Multimodal content analyzed successfully",
             content_type="multimodal",
-            size_bytes=total_size,
-            analysis=analysis,
+            size_bytes=result["total_size"],
+            analysis=analysis.content,
         )
     except Exception as e:
-        raise handle_processing_error("Multimodal processing with LLM", e)
+        raise handle_processing_error("Multimodal analysis", e)

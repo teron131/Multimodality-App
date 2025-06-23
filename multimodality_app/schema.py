@@ -4,12 +4,17 @@ Pydantic models for API request and response schemas.
 Defines data structures for all API endpoints with validation and serialization.
 """
 
-from typing import Dict, Optional
+from __future__ import annotations
+
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+# =============================================================================
+# BASE MODELS
+# =============================================================================
 
-# Standard Response Models
+
 class BaseResponse(BaseModel):
     """Base response model with standard fields."""
 
@@ -31,94 +36,181 @@ class SuccessResponse(BaseResponse):
     status: str = "success"
 
 
-# Configuration Models
-class ConfigResponse(BaseModel):
-    backend: str
-    google_api_key: str = ""
-    has_key: bool = False
-    llama_host: str = ""
-    llama_port: str = ""
-    llama_model: str = ""
-    server: str = "multimodality-app"
+# =============================================================================
+# SYSTEM MODELS
+# =============================================================================
 
 
-class StatusResponse(BaseModel):
-    server_status: str = "running"
-    message: str = "Processing ready"
-    backend: str
+class System:
+    """System-related response models."""
+
+    class Config(BaseModel):
+        backend: str
+        google_api_key: str = ""
+        has_key: bool = False
+        llama_host: str = ""
+        llama_port: str = ""
+        llama_model: str = ""
+        server: str = "multimodality-app"
+
+    class Status(BaseModel):
+        server_status: str = "running"
+        message: str = "Processing ready"
+        backend: str
+
+    class Health(BaseModel):
+        status: str
+        backend: str
+        details: Optional[Dict] = None
 
 
-class HealthResponse(BaseModel):
-    status: str
-    backend: str
-    details: Optional[Dict] = None
+# =============================================================================
+# MEDIA PROCESSING MODELS
+# =============================================================================
 
 
-# Upload Response Models
-class UploadResponse(SuccessResponse):
-    """Base upload response with common fields."""
+class Media:
+    """Media processing models - file encoding and metadata extraction."""
 
-    size_bytes: int
+    class AudioRequest(BaseModel):
+        """Audio processing request."""
 
+        filename: str
+        size_mb: float = Field(ge=0)
 
-class AudioUploadResponse(UploadResponse):
-    audio_b64: str
+    class ImageRequest(BaseModel):
+        """Image processing request."""
 
+        filename: str
+        size_mb: float = Field(ge=0)
 
-class ImageUploadResponse(UploadResponse):
-    image_b64: str
+    class VideoRequest(BaseModel):
+        """Video processing request."""
 
+        filename: str
+        size_mb: float = Field(ge=0)
 
-class VideoUploadResponse(UploadResponse):
-    video_b64: str
-    video_info: Dict
+    # Response Models
+    class Base(SuccessResponse):
+        """Base media response with common fields."""
 
+        size_bytes: int
 
-# Processing Request Models
-class ProcessingRequest(BaseModel):
-    """Base processing request model."""
+    class Audio(Base):
+        """Audio processing response."""
 
-    prompt: str = Field(default="Please analyze this content and provide insights.")
+        audio_b64: str
+        audio_info: dict
+        size_bytes: int
 
+    class Image(Base):
+        """Image processing response."""
 
-class GeminiRequest(BaseModel):
-    """Legacy Gemini API request format."""
+        image_b64: str
+        image_info: dict
+        size_bytes: int
 
-    audio_b64: str
-    api_key: Optional[str] = None
-    prompt: str = "Please transcribe this audio recording and provide any additional insights about what you hear."
-    max_tokens: int = 1000000
+    class Video(Base):
+        """Video processing response."""
 
+        video_b64: str
+        video_info: dict
+        size_bytes: int
 
-class MultimodalRequest(ProcessingRequest):
-    """Request for multimodal content processing."""
+    class Multimodal(Base):
+        audio_b64: Optional[str] = None
+        image_b64: Optional[str] = None
+        video_b64: Optional[str] = None
+        total_size_bytes: int
+        content_types: List[str]
 
-    pass
+    class VideoInfo(Base):
+        """Video information extraction response."""
 
-
-# Processing Response Models
-class ProcessingResponse(SuccessResponse):
-    """Base processing response with content analysis."""
-
-    content_type: str
-    size_bytes: int
-
-
-class GeminiResponse(BaseModel):
-    """Legacy Gemini API response format."""
-
-    status: str
-    gemini_response: Dict
-
-
-class UnifiedProcessResponse(SuccessResponse):
-    """Unified audio processing response."""
-
-    transcription: str
-    size_bytes: int
+        video_info: Dict
 
 
-class MultimodalResponse(ProcessingResponse):
-    """Multimodal content analysis response."""
+# =============================================================================
+# LLM PROCESSING MODELS
+# =============================================================================
 
-    analysis: str
+
+class LLM:
+    """LLM processing request and response models."""
+
+    # Request Models
+    class Request:
+        class Base(BaseModel):
+            """Base processing request model."""
+
+            prompt: str = Field(default="Please analyze this content and provide insights.")
+
+        class Text(Base):
+            text: str
+
+        class VideoBase64(Base):
+            """Video analysis request with base64 data."""
+
+            video_b64: str
+            filename: str
+
+    # Response Models
+    class Response:
+        class Base(SuccessResponse):
+            """Base LLM response with content analysis."""
+
+            content_type: str
+            size_bytes: int
+
+        class Text(Base):
+            analysis: str
+
+        class Audio(SuccessResponse):
+            """Audio processing with transcription and analysis."""
+
+            transcription: str  # Contains transcription and additional insights
+            size_bytes: int
+
+        class Image(Base):
+            analysis: str
+
+        class Video(Base):
+            analysis: str
+
+        class Multimodal(Base):
+            analysis: str
+
+
+# =============================================================================
+# REALTIME MODELS
+# =============================================================================
+
+
+class Realtime:
+    """Real-time WebSocket API models."""
+
+    class Config(BaseModel):
+        modalities: List[str] = Field(default=["text"])
+        instructions: Optional[str] = None
+        voice: Optional[str] = Field(default="alloy")
+        input_audio_format: str = Field(default="pcm16")
+        output_audio_format: str = Field(default="pcm16")
+        temperature: float = Field(default=0.6)
+
+    class Session(BaseModel):
+        event_id: str
+        type: str
+        session: Realtime.Config
+
+    class Item(BaseModel):
+        id: str
+        object: str = "realtime.item"
+        type: str
+        role: str
+        content: List[Dict]
+
+    class Response(BaseModel):
+        id: str
+        object: str = "realtime.response"
+        status: str
+        output: List[Realtime.Item]

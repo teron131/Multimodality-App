@@ -4,24 +4,24 @@ Real-time WebSocket endpoints for live multimodal processing.
 Provides OpenAI-compatible real-time API for streaming audio, video, and interactive processing.
 """
 
-import asyncio
 import base64
 import json
 import logging
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field
 
 from ..llm import get_response
-from ..media_processing import (
-    encode_audio,
-    encode_image,
-    encode_raw_audio,
-    process_uploaded_video,
+from ..media_processing import encode_image, encode_raw_audio, process_uploaded_video
+from ..schema import Realtime
+from .utils import (
+    log_llm_response,
+    log_multimodal_response,
+    log_processing_start,
+    truncate_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,18 +30,14 @@ router = APIRouter()
 
 
 def _create_safe_message_for_logging(message: Dict) -> Dict:
-    """Create a safe representation of WebSocket message for logging by filtering binary data.
-
-    This function provides additional WebSocket-specific filtering beyond the global MediaDataFilter.
-    """
+    """Create a safe representation of WebSocket message for logging by filtering binary data."""
     if not isinstance(message, dict):
         return message
 
     safe_message = {}
-
     for key, value in message.items():
         if isinstance(value, str):
-            # Check for base64 audio/image/video data - more aggressive filtering for WebSocket messages
+            # Check for base64 audio/image/video data
             if key in ("audio", "image", "video", "data", "content", "buffer") and len(value) > 50:
                 safe_message[key] = f"<{key.upper()}_DATA:{len(value)} chars>"
             elif len(value) > 500:
@@ -49,18 +45,13 @@ def _create_safe_message_for_logging(message: Dict) -> Dict:
                 base64_chars = sum(1 for c in value if c.isalnum() or c in "+/=")
                 if base64_chars / len(value) > 0.7:  # High ratio of base64 chars
                     safe_message[key] = f"<BASE64_DATA:{len(value)} chars>"
-                elif any(pattern in value.lower() for pattern in ["data:", "/9j/", "ggmp", "ivbor"]):
-                    safe_message[key] = f"<BINARY_DATA:{len(value)} chars>"
                 else:
-                    # Truncate very long strings
                     safe_message[key] = f"{value[:100]}...({len(value)} total chars)"
             else:
                 safe_message[key] = value
         elif isinstance(value, dict):
-            # Recursively process nested dictionaries
             safe_message[key] = _create_safe_message_for_logging(value)
         elif isinstance(value, list):
-            # Process lists, checking each item
             safe_list = []
             for item in value:
                 if isinstance(item, dict):
@@ -78,108 +69,6 @@ def _create_safe_message_for_logging(message: Dict) -> Dict:
     return safe_message
 
 
-# WebSocket Message Schemas
-class RealtimeConfig(BaseModel):
-    """Configuration for real-time session."""
-
-    modalities: List[str] = Field(default=["text"], description="Supported modalities: text, audio, image, video")
-    instructions: Optional[str] = Field(default=None, description="System instructions for the session")
-    voice: Optional[str] = Field(default="alloy", description="Voice for audio responses (future use)")
-    input_audio_format: str = Field(default="pcm16", description="Audio input format")
-    output_audio_format: str = Field(default="pcm16", description="Audio output format")
-    input_audio_transcription: Optional[Dict] = Field(default=None, description="Audio transcription settings")
-    turn_detection: Optional[Dict] = Field(default=None, description="Turn detection settings")
-    tools: List[Dict] = Field(default_factory=list, description="Available tools")
-    tool_choice: str = Field(default="auto", description="Tool choice strategy")
-    temperature: float = Field(default=0.6, description="Response temperature")
-    max_response_output_tokens: Optional[int] = Field(default=None, description="Max output tokens")
-
-
-class RealtimeMessage(BaseModel):
-    """Base real-time message structure."""
-
-    event_id: Optional[str] = None
-    type: str
-
-    class Config:
-        extra = "allow"  # Allow additional fields
-
-
-class SessionUpdateMessage(RealtimeMessage):
-    """Session configuration update message."""
-
-    type: str = "session.update"
-    session: RealtimeConfig
-
-
-class InputAudioBufferAppendMessage(RealtimeMessage):
-    """Audio buffer append message."""
-
-    type: str = "input_audio_buffer.append"
-    audio: str  # base64 encoded audio
-
-
-class InputAudioBufferCommitMessage(RealtimeMessage):
-    """Audio buffer commit message."""
-
-    type: str = "input_audio_buffer.commit"
-
-
-class InputVideoBufferAppendMessage(RealtimeMessage):
-    """Video buffer append message."""
-
-    type: str = "input_video_buffer.append"
-    video: str  # base64 encoded video
-
-
-class InputVideoBufferCommitMessage(RealtimeMessage):
-    """Video buffer commit message."""
-
-    type: str = "input_video_buffer.commit"
-
-
-class ConversationItemCreateMessage(RealtimeMessage):
-    """Create conversation item message."""
-
-    type: str = "conversation.item.create"
-    item: Dict
-
-
-class ResponseCreateMessage(RealtimeMessage):
-    """Create response message."""
-
-    type: str = "response.create"
-    response: Optional[Dict] = None
-
-
-# Response Messages
-class SessionCreatedMessage(BaseModel):
-    """Session created response."""
-
-    event_id: str
-    type: str = "session.created"
-    session: RealtimeConfig
-
-
-class ErrorMessage(BaseModel):
-    """Error response message."""
-
-    event_id: str
-    type: str = "error"
-    error: Dict[str, Union[str, int]]
-
-
-class ResponseMessage(BaseModel):
-    """Response message."""
-
-    event_id: str
-    type: str
-    response: Optional[Dict] = None
-
-    class Config:
-        extra = "allow"
-
-
 class ConnectionManager:
     """Manages WebSocket connections and sessions."""
 
@@ -192,14 +81,12 @@ class ConnectionManager:
         await websocket.accept()
         self.active_connections[session_id] = websocket
         self.sessions[session_id] = {
-            "config": RealtimeConfig(),
+            "config": Realtime.Config(),
             "audio_buffer": b"",
             "video_buffer": b"",
             "conversation": [],
-            "context": "",
         }
         logger.info(f"🔌 WebSocket connected: {session_id}")
-        logger.debug(f"📊 Session initialized with config: {self.sessions[session_id]['config']}")
 
     def disconnect(self, session_id: str):
         """Remove connection and clean up session."""
@@ -208,7 +95,6 @@ class ConnectionManager:
         if session_id in self.sessions:
             del self.sessions[session_id]
         logger.info(f"🔌 WebSocket disconnected: {session_id}")
-        logger.debug(f"📊 Active connections: {len(self.active_connections)}")
 
     async def send_message(self, session_id: str, message: Dict):
         """Send message to specific session."""
@@ -217,123 +103,49 @@ class ConnectionManager:
             logger.debug(f"📤 Sending {message.get('type', 'unknown')} to session: {session_id}")
             await websocket.send_text(json.dumps(message))
 
-    async def broadcast(self, message: Dict):
-        """Broadcast message to all connections."""
-        for session_id, websocket in self.active_connections.items():
-            try:
-                await websocket.send_text(json.dumps(message))
-            except Exception as e:
-                logger.error(f"Error broadcasting to {session_id}: {e}")
-
 
 manager = ConnectionManager()
 
 
-async def process_audio_chunk(audio_data: bytes, session_id: str) -> str:
-    """Process audio chunk and return transcription/response."""
-    try:
-        # Get session context for audio format
-        session = manager.sessions.get(session_id, {})
-        config = session.get("config", RealtimeConfig())
-
-        # Get audio format from config
-        input_format = config.input_audio_format
-        logger.info(f"🎵 Processing {len(audio_data)} bytes of {input_format} audio")
-
-        # Process raw audio data using simplified function
-        audio_b64 = encode_raw_audio(audio_data)
-
-        # Get instructions
-        instructions = config.instructions or "Please transcribe and respond to this audio."
-
-        # Use existing LLM integration
-        logger.info(f"🤖 Sending audio to LLM with instructions: {instructions[:50]}...")
-        response = get_response(text_input=instructions, audio_b64s=[audio_b64])
-
-        logger.info(f"✅ Audio processing complete, response length: {len(response.content)} chars")
-        return response.content
-
-    except Exception as e:
-        logger.error(f"❌ Error processing audio chunk: {e}", exc_info=True)
-        raise
-
-
-async def process_video_chunk(video_data: bytes, session_id: str) -> str:
-    """Process video chunk for real-time inference using unified Gemini-safe processing.
-
-    Note: Gemini rejects small video chunks (< 1MB), so we accumulate them into larger videos.
-    """
-    try:
-        logger.info(f"🎬 Processing video chunk: {len(video_data)} bytes for session: {session_id}")
-
-        # Check if chunk is too small for Gemini (< 1MB threshold)
-        chunk_size_mb = len(video_data) / (1024 * 1024)
-        if chunk_size_mb < 0.1:
-            logger.warning(f"⚠️ Video chunk too small ({chunk_size_mb:.1f}MB) - Gemini rejects small chunks. Skipping processing.")
-            return "Video chunk received but too small for analysis. Recording longer clips for better results."
-
-        # Use unified video processing (Gemini-safe)
-        video_b64, encoding_info = process_uploaded_video(video_data, f"realtime_chunk_{session_id}.mp4")
-
-        # Get session context
-        session = manager.sessions.get(session_id, {})
-        config = session.get("config", RealtimeConfig())
-        instructions = config.instructions or "Analyze this video content."
-
-        # Process with LLM
-        response = get_response(
-            text_input=instructions,
-            video_b64s=[video_b64],
-        )
-
-        logger.info(f"🤖 Video processing complete for session: {session_id} (Gemini-safe: {encoding_info.get('meets_gemini_requirements', False)})")
-        return response.content
-
-    except Exception as e:
-        logger.error(f"❌ Error processing video chunk: {e}", exc_info=True)
-        # Return user-friendly error instead of raising
-        return f"Video processing temporarily unavailable. Error: {str(e)}"
-
-
-async def process_multimodal_input(
-    text: Optional[str] = None,
+async def invoke_media_content(
     audio_data: Optional[bytes] = None,
     image_data: Optional[bytes] = None,
     video_data: Optional[bytes] = None,
+    text: Optional[str] = None,
     session_id: str = None,
 ) -> str:
-    """Process multimodal input using existing LLM integration."""
+    """Unified media content analysis with LLM for real-time content."""
     try:
-        # Prepare inputs
+        # Get session context
+        session = manager.sessions.get(session_id, {})
+        config = session.get("config", Realtime.Config())
+        instructions = config.instructions
+
+        # Prepare inputs for LLM
         audio_b64s = []
         image_b64s = []
         video_b64s = []
 
-        # Process audio if provided
+        # Process each media type
         if audio_data:
-            temp_audio = Path(tempfile.mktemp(suffix=".wav"))
-            with open(temp_audio, "wb") as f:
-                f.write(audio_data)
-            audio_b64s.append(encode_audio(temp_audio))
-            temp_audio.unlink()
+            audio_b64s.append(encode_raw_audio(audio_data))
+            logger.info(f"🎵 Processing {len(audio_data)} bytes of audio")
 
-        # Process image if provided
         if image_data:
             temp_image = Path(tempfile.mktemp(suffix=".png"))
-            with open(temp_image, "wb") as f:
-                f.write(image_data)
-            image_b64s.append(encode_image(temp_image))
-            temp_image.unlink()
+            try:
+                with open(temp_image, "wb") as f:
+                    f.write(image_data)
+                image_b64s.append(encode_image(temp_image))
+                logger.info(f"🖼️ Processing {len(image_data)} bytes of image")
+            finally:
+                if temp_image.exists():
+                    temp_image.unlink()
 
-        # Process video if provided (unified Gemini-safe)
         if video_data:
-            video_b64, _ = process_uploaded_video(video_data, f"multimodal_{session_id}.mp4")
+            video_b64, _ = process_uploaded_video(video_data, f"realtime_{session_id}.mp4")
             video_b64s.append(video_b64)
-
-        # Get session context
-        session = manager.sessions.get(session_id, {})
-        config = session.get("config", RealtimeConfig())
-        instructions = config.instructions
+            logger.info(f"🎬 Processing {len(video_data)} bytes of video")
 
         # Combine instructions with text input
         final_text = text
@@ -343,7 +155,7 @@ async def process_multimodal_input(
             else:
                 final_text = instructions
 
-        # Use existing LLM integration
+        # Get LLM response
         response = get_response(
             text_input=final_text,
             audio_b64s=audio_b64s if audio_b64s else None,
@@ -351,37 +163,111 @@ async def process_multimodal_input(
             video_b64s=video_b64s if video_b64s else None,
         )
 
+        # Log response with preview
+        total_data_size = (len(audio_data) if audio_data else 0) + (len(image_data) if image_data else 0) + (len(video_data) if video_data else 0)
+        content_types = []
+        if audio_data:
+            content_types.append("audio")
+        if image_data:
+            content_types.append("image")
+        if video_data:
+            content_types.append("video")
+        if text:
+            content_types.append("text")
+
+        log_realtime_response("multimodal analysis", session_id, response.content, total_data_size, content_types)
+
         return response.content
 
     except Exception as e:
-        logger.error(f"❌ Error processing multimodal input: {e}", exc_info=True)
-        raise
+        logger.error(f"❌ Error invoking LLM for media content: {e}", exc_info=True)
+        return f"Analysis temporarily unavailable. Error: {str(e)}"
+
+
+def create_response_message(event_id: str, content: str, response_type: str = "response.done") -> Dict:
+    """Create standardized response message."""
+    return {
+        "event_id": event_id,
+        "type": response_type,
+        "response": {
+            "id": f"resp_{event_id}",
+            "object": "realtime.response",
+            "status": "completed",
+            "output": [
+                {
+                    "id": f"item_{event_id}",
+                    "object": "realtime.item",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": content}],
+                }
+            ],
+        },
+    }
+
+
+def create_error_message(event_id: str, error_message: str, error_code: str = "processing_failed") -> Dict:
+    """Create standardized error message."""
+    return {
+        "event_id": event_id,
+        "type": "error",
+        "error": {
+            "type": "server_error",
+            "code": error_code,
+            "message": error_message,
+        },
+    }
+
+
+async def handle_buffer_commit(session_id: str, event_id: str, buffer_type: str) -> Dict:
+    """Handle buffer commit for audio or video."""
+    session = manager.sessions[session_id]
+    buffer_key = f"{buffer_type}_buffer"
+    buffer_data = session[buffer_key]
+
+    if not buffer_data:
+        return {"event_id": event_id, "type": f"input_{buffer_type}_buffer.cleared"}
+
+    try:
+        logger.info(f"🔄 Processing {buffer_type} buffer ({len(buffer_data)} bytes) for session: {session_id}")
+
+        # Process based on buffer type
+        if buffer_type == "audio":
+            response_content = await invoke_media_content(audio_data=buffer_data, session_id=session_id)
+        elif buffer_type == "video":
+            response_content = await invoke_media_content(video_data=buffer_data, session_id=session_id)
+        else:
+            raise ValueError(f"Unsupported buffer type: {buffer_type}")
+
+        # Additional logging for buffer processing is handled in invoke_media_content
+        return create_response_message(event_id, response_content)
+
+    except Exception as e:
+        logger.error(f"❌ {buffer_type.title()} processing error for session {session_id}: {e}")
+        return create_error_message(event_id, f"Unable to process {buffer_type}. Please try again.")
+
+    finally:
+        # Clear buffer
+        session[buffer_key] = b""
 
 
 @router.websocket("/ws/realtime")
 async def websocket_realtime_endpoint(websocket: WebSocket):
-    """
-    WebSocket endpoint for real-time multimodal inference.
+    """WebSocket endpoint for real-time multimodal inference."""
+    session_id = f"session_{id(websocket)}"
 
-    Compatible with OpenAI Realtime API format while using your existing LLM backend.
-    Supports text, audio, image, and video inputs with streaming responses.
-    """
     try:
-        # Initialize session
-        session_id = f"session_{id(websocket)}"
         await manager.connect(websocket, session_id)
 
         # Send session created event
-        session_config = RealtimeConfig()
-        session_created = SessionCreatedMessage(event_id=f"event_{session_id}_created", session=session_config)
-        await manager.send_message(session_id, session_created.dict())
-        logger.info(f"🔌 WebSocket connection established: {session_id}")
+        session_config = Realtime.Config()
+        session_created = {"event_id": f"event_{session_id}_created", "type": "session.created", "session": session_config.dict()}
+        await manager.send_message(session_id, session_created)
         logger.info(f"✅ Session created with modalities: {session_config.modalities}")
 
         # Main message handling loop
         while True:
             try:
-                # Receive message
                 raw_message = await websocket.receive_text()
                 message = json.loads(raw_message)
 
@@ -391,17 +277,16 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                 logger.info(f"📨 Received message type: {event_type} for session: {session_id}")
                 logger.debug(f"📨 Full message: {_create_safe_message_for_logging(message)}")
 
+                # Handle different message types
                 if event_type == "session.update":
                     # Update session configuration
                     session_config = message.get("session", {})
-                    manager.sessions[session_id]["config"] = RealtimeConfig(**session_config)
-
+                    manager.sessions[session_id]["config"] = Realtime.Config(**session_config)
                     response = {
                         "event_id": event_id,
                         "type": "session.updated",
                         "session": session_config,
                     }
-                    logger.info(f"📤 Sending session.updated for session: {session_id}")
                     await manager.send_message(session_id, response)
 
                 elif event_type == "input_audio_buffer.append":
@@ -409,175 +294,48 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                     audio_b64 = message.get("audio", "")
                     audio_data = base64.b64decode(audio_b64)
                     manager.sessions[session_id]["audio_buffer"] += audio_data
-
-                    # Send acknowledgment
                     response = {"event_id": event_id, "type": "input_audio_buffer.appended"}
-                    logger.info(f"🎵 Audio buffer appended ({len(audio_data)} bytes) for session: {session_id}")
                     await manager.send_message(session_id, response)
 
                 elif event_type == "input_audio_buffer.commit":
-                    # Process accumulated audio buffer
-                    audio_buffer = manager.sessions[session_id]["audio_buffer"]
-
-                    if audio_buffer:
-                        try:
-                            # Process audio and get response
-                            logger.info(f"🎵 Processing audio buffer ({len(audio_buffer)} bytes) for session: {session_id}")
-                            llm_response = await process_audio_chunk(audio_buffer, session_id)
-
-                            # Send response
-                            response = {
-                                "event_id": event_id,
-                                "type": "response.done",
-                                "response": {
-                                    "id": f"resp_{event_id}",
-                                    "object": "realtime.response",
-                                    "status": "completed",
-                                    "output": [
-                                        {
-                                            "id": f"item_{event_id}",
-                                            "object": "realtime.item",
-                                            "type": "message",
-                                            "role": "assistant",
-                                            "content": [{"type": "text", "text": llm_response}],
-                                        }
-                                    ],
-                                },
-                            }
-                            logger.info(f"🤖 Sending audio response for session: {session_id}")
-                            logger.info(f"💬 AI Response: {llm_response[:100]}{'...' if len(llm_response) > 100 else ''}")
-                            await manager.send_message(session_id, response)
-
-                        except Exception as e:
-                            # Log technical error for developers
-                            logger.error(f"❌ Audio processing error for session {session_id}: {e}")
-                            error_response = {
-                                "event_id": event_id,
-                                "type": "error",
-                                "error": {
-                                    "type": "server_error",
-                                    "code": "processing_failed",
-                                    "message": "Unable to process audio. Please try again.",
-                                },
-                            }
-                            await manager.send_message(session_id, error_response)
-
-                    # Clear audio buffer
-                    manager.sessions[session_id]["audio_buffer"] = b""
-
-                    # Send buffer cleared confirmation
-                    response = {"event_id": event_id, "type": "input_audio_buffer.cleared"}
+                    # Process audio buffer
+                    response = await handle_buffer_commit(session_id, event_id, "audio")
                     await manager.send_message(session_id, response)
+                    # Send buffer cleared confirmation
+                    await manager.send_message(session_id, {"event_id": event_id, "type": "input_audio_buffer.cleared"})
 
                 elif event_type == "input_video_buffer.append":
                     # Append video to buffer
                     video_b64 = message.get("video", "")
                     video_data = base64.b64decode(video_b64)
                     manager.sessions[session_id]["video_buffer"] += video_data
-
-                    # Send acknowledgment
                     response = {"event_id": event_id, "type": "input_video_buffer.appended"}
-                    logger.info(f"🎬 Video buffer appended ({len(video_data)} bytes) for session: {session_id}")
                     await manager.send_message(session_id, response)
 
                 elif event_type == "input_video_buffer.commit":
-                    # Process accumulated video buffer
-                    video_buffer = manager.sessions[session_id]["video_buffer"]
-
-                    if video_buffer:
-                        try:
-                            # Process video and get response
-                            logger.info(f"🎬 Processing video buffer ({len(video_buffer)} bytes) for session: {session_id}")
-                            llm_response = await process_video_chunk(video_buffer, session_id)
-
-                            # Send response
-                            response = {
-                                "event_id": event_id,
-                                "type": "response.done",
-                                "response": {
-                                    "id": f"resp_{event_id}",
-                                    "object": "realtime.response",
-                                    "status": "completed",
-                                    "output": [
-                                        {
-                                            "id": f"item_{event_id}",
-                                            "object": "realtime.item",
-                                            "type": "message",
-                                            "role": "assistant",
-                                            "content": [{"type": "text", "text": llm_response}],
-                                        }
-                                    ],
-                                },
-                            }
-                            logger.info(f"🤖 Sending video response for session: {session_id}")
-                            logger.info(f"💬 AI Response: {llm_response[:100]}{'...' if len(llm_response) > 100 else ''}")
-                            await manager.send_message(session_id, response)
-
-                        except Exception as e:
-                            # Log technical error for developers
-                            logger.error(f"❌ Video processing error for session {session_id}: {e}")
-                            error_response = {
-                                "event_id": event_id,
-                                "type": "error",
-                                "error": {
-                                    "type": "server_error",
-                                    "code": "processing_failed",
-                                    "message": "Unable to process video. Please try again.",
-                                },
-                            }
-                            await manager.send_message(session_id, error_response)
-
-                    # Clear video buffer
-                    manager.sessions[session_id]["video_buffer"] = b""
-
-                    # Send buffer cleared confirmation
-                    response = {"event_id": event_id, "type": "input_video_buffer.cleared"}
+                    # Process video buffer
+                    response = await handle_buffer_commit(session_id, event_id, "video")
                     await manager.send_message(session_id, response)
+                    # Send buffer cleared confirmation
+                    await manager.send_message(session_id, {"event_id": event_id, "type": "input_video_buffer.cleared"})
 
                 elif event_type == "conversation.item.create":
-                    # Handle conversation item creation (text, image, video)
+                    # Handle conversation item creation
                     item = message.get("item", {})
-                    item_type = item.get("type")
-
-                    if item_type == "message":
-                        # Log UI file selection events
-                        content = item.get("content", [])
-                        for content_item in content:
-                            content_type = content_item.get("type")
-                            if content_type == "audio":
-                                audio_b64 = content_item.get("audio", "")
-                                size_mb = len(audio_b64) * 3 / 4 / (1024 * 1024)  # Approximate size from base64
-                                logger.info(f"🎵 UI: Audio file uploaded - {size_mb:.2f} MB base64 data")
-                            elif content_type == "image":
-                                image_b64 = content_item.get("image", "")
-                                size_mb = len(image_b64) * 3 / 4 / (1024 * 1024)  # Approximate size from base64
-                                logger.info(f"🖼️ UI: Image file uploaded - {size_mb:.2f} MB base64 data")
-                            elif content_type == "video":
-                                video_b64 = content_item.get("video", "")
-                                size_mb = len(video_b64) * 3 / 4 / (1024 * 1024)  # Approximate size from base64
-                                logger.info(f"🎬 UI: Video file uploaded - {size_mb:.2f} MB base64 data")
-                            elif content_type == "text":
-                                text_content = content_item.get("text", "")
-                                logger.info(f"📝 UI: Text message sent - {len(text_content)} chars")
-
-                        # Store in conversation history
-                        manager.sessions[session_id]["conversation"].append(item)
-
-                        # Send item created confirmation
-                        response = {
-                            "event_id": event_id,
-                            "type": "conversation.item.created",
-                            "item": item,
-                        }
-                        logger.info(f"💬 Conversation item created for session: {session_id}")
-                        await manager.send_message(session_id, response)
+                    manager.sessions[session_id]["conversation"].append(item)
+                    response = {
+                        "event_id": event_id,
+                        "type": "conversation.item.created",
+                        "item": item,
+                    }
+                    await manager.send_message(session_id, response)
 
                 elif event_type == "response.create":
                     # Generate response based on conversation
                     session_data = manager.sessions[session_id]
                     conversation = session_data["conversation"]
 
-                    # Get the last user message for processing
+                    # Get the last user message
                     last_message = None
                     for item in reversed(conversation):
                         if item.get("role") == "user":
@@ -595,57 +353,29 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
 
                         for content_item in content:
                             content_type = content_item.get("type")
-
                             if content_type == "text":
                                 text_content = content_item.get("text", "")
-                                logger.debug(f"📝 Extracted text: {text_content[:50]}{'...' if len(text_content) > 50 else ''}")
                             elif content_type == "audio":
-                                audio_b64 = content_item.get("audio", "")
-                                audio_data = base64.b64decode(audio_b64)
-                                logger.debug(f"🎵 Extracted audio: {len(audio_data)} bytes")
+                                audio_data = base64.b64decode(content_item.get("audio", ""))
                             elif content_type == "image":
-                                image_b64 = content_item.get("image", "")
-                                image_data = base64.b64decode(image_b64)
-                                logger.debug(f"🖼️ Extracted image: {len(image_data)} bytes")
+                                image_data = base64.b64decode(content_item.get("image", ""))
                             elif content_type == "video":
-                                video_b64 = content_item.get("video", "")
-                                video_data = base64.b64decode(video_b64)
-                                logger.debug(f"🎬 Extracted video: {len(video_data)} bytes")
+                                video_data = base64.b64decode(content_item.get("video", ""))
 
                         try:
-                            # Process using multimodal handler
                             content_types = [item.get("type") for item in content if item.get("type")]
-                            logger.info(f"🧠 Processing multimodal input for session: {session_id} - Content types: {content_types}")
+                            total_size = (len(audio_data) if audio_data else 0) + (len(image_data) if image_data else 0) + (len(video_data) if video_data else 0)
+                            logger.info(f"🔄 Processing multimodal input for session: {session_id} - Content types: {content_types} ({total_size} bytes)")
 
-                            llm_response = await process_multimodal_input(
-                                text=text_content or None,
+                            llm_response = await invoke_media_content(
                                 audio_data=audio_data,
                                 image_data=image_data,
                                 video_data=video_data,
+                                text=text_content or None,
                                 session_id=session_id,
                             )
 
-                            # Send response
-                            response = {
-                                "event_id": event_id,
-                                "type": "response.done",
-                                "response": {
-                                    "id": f"resp_{event_id}",
-                                    "object": "realtime.response",
-                                    "status": "completed",
-                                    "output": [
-                                        {
-                                            "id": f"item_{event_id}",
-                                            "object": "realtime.item",
-                                            "type": "message",
-                                            "role": "assistant",
-                                            "content": [{"type": "text", "text": llm_response}],
-                                        }
-                                    ],
-                                },
-                            }
-                            logger.info(f"🤖 Sending multimodal response for session: {session_id}")
-                            logger.info(f"💬 AI Response: {llm_response[:100]}{'...' if len(llm_response) > 100 else ''}")
+                            response = create_response_message(event_id, llm_response)
                             await manager.send_message(session_id, response)
 
                             # Add assistant response to conversation
@@ -659,40 +389,19 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
                             manager.sessions[session_id]["conversation"].append(assistant_item)
 
                         except Exception as e:
-                            # Log technical error for developers
                             logger.error(f"❌ Multimodal processing error for session {session_id}: {e}")
-                            error_response = {
-                                "event_id": event_id,
-                                "type": "error",
-                                "error": {"type": "server_error", "code": "processing_failed", "message": "Unable to process your request. Please try again."},
-                            }
+                            error_response = create_error_message(event_id, "Unable to process your request. Please try again.")
                             await manager.send_message(session_id, error_response)
 
                 else:
                     # Unknown message type
                     logger.warning(f"Unknown message type: {event_type}")
-                    error_response = {
-                        "event_id": event_id,
-                        "type": "error",
-                        "error": {
-                            "type": "invalid_request_error",
-                            "code": "unknown_event_type",
-                            "message": "Invalid request format. Please try again.",
-                        },
-                    }
+                    error_response = create_error_message(event_id, "Invalid request format. Please try again.", "unknown_event_type")
                     await manager.send_message(session_id, error_response)
 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error: {e}")
-                error_response = {
-                    "event_id": "error",
-                    "type": "error",
-                    "error": {
-                        "type": "invalid_request_error",
-                        "code": "invalid_json",
-                        "message": "Invalid JSON format",
-                    },
-                }
+                error_response = create_error_message("error", "Invalid JSON format", "invalid_json")
                 await manager.send_message(session_id, error_response)
 
     except WebSocketDisconnect:
@@ -705,24 +414,12 @@ async def websocket_realtime_endpoint(websocket: WebSocket):
 
 @router.websocket("/ws/realtime/video")
 async def websocket_video_stream_endpoint(websocket: WebSocket):
-    """
-    Dedicated WebSocket endpoint for real-time video streaming and inference.
+    """Dedicated WebSocket endpoint for real-time video streaming."""
+    session_id = f"video_session_{id(websocket)}"
 
-    Optimized for live video processing with immediate frame-by-frame analysis.
-    """
     try:
-        session_id = f"video_session_{id(websocket)}"
         await websocket.accept()
         logger.info(f"🎬 Video streaming WebSocket connected: {session_id}")
-
-        # Initialize video session
-        manager.sessions[session_id] = {
-            "config": RealtimeConfig(modalities=["video", "text"]),
-            "video_buffer": b"",
-            "frame_count": 0,
-            "conversation": [],
-            "context": "",
-        }
 
         # Send connection confirmation
         await websocket.send_json(
@@ -736,39 +433,32 @@ async def websocket_video_stream_endpoint(websocket: WebSocket):
 
         while True:
             try:
-                # Receive video frame or command
                 message = await websocket.receive_json()
                 message_type = message.get("type")
 
                 if message_type == "video_frame":
                     # Process individual video frame
                     frame_data = base64.b64decode(message.get("frame", ""))
-                    frame_id = message.get("frame_id", manager.sessions[session_id]["frame_count"])
-
-                    manager.sessions[session_id]["frame_count"] += 1
-
-                    logger.debug(f"🎬 Processing video frame {frame_id}: {len(frame_data)} bytes")
+                    frame_id = message.get("frame_id", int(time.time() * 1000))
 
                     try:
-                        # Process frame
+                        # Process frame as image
                         temp_frame = Path(tempfile.mktemp(suffix=".jpg"))
-                        with open(temp_frame, "wb") as f:
-                            f.write(frame_data)
-
-                        # Use image processing for individual frames
-                        from ..media_processing import encode_image
-
-                        frame_b64 = encode_image(temp_frame)
-                        temp_frame.unlink()
+                        try:
+                            with open(temp_frame, "wb") as f:
+                                f.write(frame_data)
+                            frame_b64 = encode_image(temp_frame)
+                        finally:
+                            if temp_frame.exists():
+                                temp_frame.unlink()
 
                         # Get frame analysis
                         instructions = message.get("prompt", "Describe what you see in this video frame.")
-                        response = get_response(
-                            text_input=instructions,
-                            image_b64s=[frame_b64],
-                        )
+                        response = get_response(text_input=instructions, image_b64s=[frame_b64])
 
-                        # Send frame analysis
+                        # Log frame analysis with preview
+                        log_realtime_response("video frame analysis", session_id, response.content, len(frame_data), ["video_frame"])
+
                         await websocket.send_json(
                             {
                                 "type": "video_frame.analyzed",
@@ -793,16 +483,14 @@ async def websocket_video_stream_endpoint(websocket: WebSocket):
                     video_data = base64.b64decode(message.get("video", ""))
 
                     try:
-                        llm_response = await process_video_chunk(video_data, session_id)
-
+                        response_content = await invoke_media_content(video_data=video_data, session_id=session_id)
                         await websocket.send_json(
                             {
                                 "type": "video_complete.analyzed",
-                                "analysis": llm_response,
+                                "analysis": response_content,
                                 "timestamp": time.time(),
                             }
                         )
-
                     except Exception as e:
                         logger.error(f"❌ Video processing error: {e}")
                         await websocket.send_json(
@@ -813,7 +501,6 @@ async def websocket_video_stream_endpoint(websocket: WebSocket):
                         )
 
                 elif message_type == "ping":
-                    # Health check
                     await websocket.send_json(
                         {
                             "type": "pong",
@@ -834,9 +521,6 @@ async def websocket_video_stream_endpoint(websocket: WebSocket):
         logger.info(f"🎬 Video streaming WebSocket disconnected: {session_id}")
     except Exception as e:
         logger.error(f"❌ Video streaming WebSocket error: {e}", exc_info=True)
-    finally:
-        if session_id in manager.sessions:
-            del manager.sessions[session_id]
 
 
 @router.get("/api/realtime/status")
@@ -851,12 +535,18 @@ async def get_realtime_status():
             "video_streaming": "/ws/realtime/video",
         },
         "supported_modalities": ["text", "audio", "image", "video"],
-        "video_features": {
-            "buffer_support": True,
-            "frame_by_frame": True,
-            "complete_video": True,
-            "streaming": True,
-        },
         "backend_compatible": True,
         "openai_compatible": True,
     }
+
+
+def log_realtime_response(operation: str, session_id: str, response_content: str, data_size: int = 0, content_types: list = None) -> None:
+    """Log real-time LLM response with content preview."""
+    clean_content = response_content.replace("\n", " ").replace("\r", " ")
+    preview = truncate_text(clean_content, 100)
+
+    if content_types:
+        content_type_str = " + ".join(content_types)
+        logger.info(f"⚡ {operation} complete [{session_id}]: {content_type_str} ({data_size} bytes) -> {preview}")
+    else:
+        logger.info(f"⚡ {operation} complete [{session_id}]: ({data_size} bytes) -> {preview}")

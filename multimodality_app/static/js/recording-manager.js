@@ -103,7 +103,7 @@ class RecordingManager {
             formData.append('audio', audioBlob, 'recording.webm');
             formData.append('prompt', prompt);
             
-            const response = await fetch('/api/process-audio-unified', {
+            const response = await fetch('/api/invoke-audio', {
                 method: 'POST',
                 body: formData
             });

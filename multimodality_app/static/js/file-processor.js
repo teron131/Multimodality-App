@@ -31,7 +31,7 @@ class FileProcessor {
 
         try {
             // Using the LLM directly via a simple endpoint
-            const response = await fetch('/api/process-text', {
+            const response = await fetch('/api/invoke-text', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ class FileProcessor {
             formData.append('audio', file);
             formData.append('prompt', prompt);
 
-            const response = await fetch('/api/process-audio-unified', {
+            const response = await fetch('/api/invoke-audio', {
                 method: 'POST',
                 body: formData
             });
@@ -115,7 +115,7 @@ class FileProcessor {
             formData.append('image', file);
             formData.append('prompt', prompt);
 
-            const response = await fetch('/api/process-image-unified', {
+            const response = await fetch('/api/invoke-image', {
                 method: 'POST',
                 body: formData
             });
@@ -154,7 +154,7 @@ class FileProcessor {
             formData.append('video', file);
             formData.append('prompt', prompt);
 
-            const response = await fetch('/api/process-video-unified', {
+            const response = await fetch('/api/invoke-video', {
                 method: 'POST',
                 body: formData
             });
@@ -198,7 +198,7 @@ class FileProcessor {
             }
             formData.append('prompt', prompt);
 
-            const response = await fetch('/api/process-multimodal-unified', {
+            const response = await fetch('/api/invoke-multimodal', {
                 method: 'POST',
                 body: formData
             });
