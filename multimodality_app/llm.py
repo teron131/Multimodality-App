@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
+from .config import CONVERSATION_TEXT_SUFFIX
 from .media_processing.audio import encode_audio
 from .media_processing.image import encode_image
 from .media_processing.video import encode_video
@@ -66,6 +67,7 @@ def get_response(
     audio_b64s: list[str] = None,
     video_paths: list[str | Path] = None,
     video_b64s: list[str] = None,
+    conversation_mode: bool = False,
 ) -> AIMessage:
     """Get a response from the configured LLM backend. At least one input must be provided.
 
@@ -77,6 +79,7 @@ def get_response(
         audio_b64s: Pre-encoded audio data (alternative to audio_paths).
         video_paths: The paths to the video to be sent to the LLM.
         video_b64s: Pre-encoded video data (alternative to video_paths).
+        conversation_mode: Enable conversation mode for brief, focused responses.
 
     Returns:
         The response from the LLM.
@@ -156,14 +159,38 @@ def get_response(
 
     # If combining text and image/audio/video, place the text prompt after
     if text_input:
+        # Modify text for conversation mode
+        if conversation_mode:
+            text_input = text_input + CONVERSATION_TEXT_SUFFIX
+            logger.debug(f"💬 Conversation mode enabled - modified prompt")
+
         content.append({"type": "text", "text": text_input})
         logger.debug(f"📝 Added text input: {len(text_input)} chars")
 
     logger.info(f"🚀 Sending {len(content)} content items to {LLM_BACKEND}")
 
     try:
-        response = llm.invoke([HumanMessage(content=content)])
+        # Configure LLM for conversation mode
+        if conversation_mode:
+            logger.info(f"💬 Conversation mode enabled - using brief response prompts")
+
+            # For conversation mode, we rely entirely on prompt engineering
+            # as max_tokens causes issues with Gemini's multimodal API
+            response = llm.invoke([HumanMessage(content=content)])
+            logger.info(f"💬 Conversation response length: {len(response.content)} chars")
+
+        else:
+            response = llm.invoke([HumanMessage(content=content)])
+
         logger.info(f"✅ LLM response received: {len(response.content)} chars")
+        if conversation_mode and response.content:
+            logger.debug(f"💬 Conversation response content: {response.content[:200]}...")
+
+        # Final check for empty response
+        if not response.content:
+            logger.error("❌ LLM returned empty response")
+            response.content = "I apologize, but I couldn't generate a response. Please try again."
+
         return response
     except Exception as e:
         logger.error(f"❌ LLM request failed: {e}", exc_info=True)

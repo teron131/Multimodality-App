@@ -7,9 +7,13 @@ Uses standardized response models from schema.py for consistency.
 
 import base64
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 
 from ..config import (
+    CONVERSATION_AUDIO_PROMPT,
+    CONVERSATION_IMAGE_PROMPT,
+    CONVERSATION_MULTIMODAL_PROMPT,
+    CONVERSATION_VIDEO_PROMPT,
     DEFAULT_AUDIO_PROMPT,
     DEFAULT_IMAGE_PROMPT,
     DEFAULT_MULTIMODAL_PROMPT,
@@ -38,7 +42,7 @@ async def invoke_text(request: LLM.Request.Text):
         log_processing_start("text analysis", "text_input", len(request.text.encode()))
 
         # Get LLM response for text
-        analysis = get_response(text_input=request.text + "\n\n" + request.prompt)
+        analysis = get_response(text_input=request.text + "\n\n" + request.prompt, conversation_mode=request.conversation_mode)
 
         # Log with output preview
         log_llm_response("text analysis", "text_input", analysis.content, len(request.text.encode()))
@@ -55,15 +59,18 @@ async def invoke_text(request: LLM.Request.Text):
 
 
 @router.post("/api/invoke-audio", response_model=LLM.Response.Audio)
-async def invoke_audio(audio: UploadFile = File(...), prompt: str = DEFAULT_AUDIO_PROMPT):
+async def invoke_audio(audio: UploadFile = File(...), prompt: str = Form(DEFAULT_AUDIO_PROMPT), conversation_mode: bool = Form(False)):
     """Upload audio file and invoke LLM for analysis."""
     try:
         audio_b64, size_bytes = await process_single_file(audio, "audio", "audio analysis with LLM")
 
         log_processing_start("audio analysis", audio.filename, size_bytes)
 
+        # Use conversation-specific prompt if conversation mode is enabled
+        effective_prompt = CONVERSATION_AUDIO_PROMPT if conversation_mode else prompt
+
         # Get LLM analysis
-        analysis = get_response(audio_b64s=[audio_b64], text_input=prompt)
+        analysis = get_response(audio_b64s=[audio_b64], text_input=effective_prompt, conversation_mode=conversation_mode)
 
         # Log with output preview
         log_llm_response("audio analysis", audio.filename, analysis.content, size_bytes)
@@ -79,15 +86,18 @@ async def invoke_audio(audio: UploadFile = File(...), prompt: str = DEFAULT_AUDI
 
 
 @router.post("/api/invoke-image", response_model=LLM.Response.Image)
-async def invoke_image(image: UploadFile = File(...), prompt: str = DEFAULT_IMAGE_PROMPT):
+async def invoke_image(image: UploadFile = File(...), prompt: str = Form(DEFAULT_IMAGE_PROMPT), conversation_mode: bool = Form(False)):
     """Upload image file and invoke LLM for analysis."""
     try:
         image_b64, size_bytes = await process_single_file(image, "image", "image analysis with LLM")
 
         log_processing_start("image analysis", image.filename, size_bytes)
 
+        # Use conversation-specific prompt if conversation mode is enabled
+        effective_prompt = CONVERSATION_IMAGE_PROMPT if conversation_mode else prompt
+
         # Get LLM analysis
-        analysis = get_response(image_b64s=[image_b64], text_input=prompt)
+        analysis = get_response(image_b64s=[image_b64], text_input=effective_prompt, conversation_mode=conversation_mode)
 
         # Log with output preview
         log_llm_response("image analysis", image.filename, analysis.content, size_bytes)
@@ -104,7 +114,7 @@ async def invoke_image(image: UploadFile = File(...), prompt: str = DEFAULT_IMAG
 
 
 @router.post("/api/invoke-video", response_model=LLM.Response.Video)
-async def invoke_video(video: UploadFile = File(...), prompt: str = DEFAULT_VIDEO_PROMPT):
+async def invoke_video(video: UploadFile = File(...), prompt: str = Form(DEFAULT_VIDEO_PROMPT), conversation_mode: bool = Form(False)):
     """Upload video file and invoke LLM for analysis."""
     try:
         # Use direct processing for video to maintain video_info
@@ -115,8 +125,11 @@ async def invoke_video(video: UploadFile = File(...), prompt: str = DEFAULT_VIDE
         # Encode video with Gemini-safe processing
         video_b64, encoding_info = process_uploaded_video(video_data, video.filename)
 
+        # Use conversation-specific prompt if conversation mode is enabled
+        effective_prompt = CONVERSATION_VIDEO_PROMPT if conversation_mode else prompt
+
         # Get LLM analysis
-        analysis = get_response(video_b64s=[video_b64], text_input=prompt)
+        analysis = get_response(video_b64s=[video_b64], text_input=effective_prompt, conversation_mode=conversation_mode)
 
         # Log with output preview
         log_llm_response("video analysis", video.filename, analysis.content, len(video_data))
@@ -144,8 +157,11 @@ async def invoke_video_base64(request: LLM.Request.VideoBase64):
         # Encode video with Gemini-safe processing
         video_b64, encoding_info = process_uploaded_video(video_data, request.filename)
 
+        # Use conversation-specific prompt if conversation mode is enabled
+        effective_prompt = CONVERSATION_VIDEO_PROMPT if request.conversation_mode else request.prompt
+
         # Get LLM analysis
-        analysis = get_response(video_b64s=[video_b64], text_input=request.prompt)
+        analysis = get_response(video_b64s=[video_b64], text_input=effective_prompt, conversation_mode=request.conversation_mode)
 
         # Log with output preview
         log_llm_response("base64 video analysis", request.filename, analysis.content, len(video_data))
@@ -163,7 +179,8 @@ async def invoke_video_base64(request: LLM.Request.VideoBase64):
 
 @router.post("/api/invoke-multimodal", response_model=LLM.Response.Multimodal)
 async def invoke_multimodal(
-    prompt: str = DEFAULT_MULTIMODAL_PROMPT,
+    prompt: str = Form(DEFAULT_MULTIMODAL_PROMPT),
+    conversation_mode: bool = Form(False),
     audio: UploadFile = File(None),
     image: UploadFile = File(None),
     video: UploadFile = File(None),
@@ -174,12 +191,16 @@ async def invoke_multimodal(
 
         log_processing_start("multimodal analysis", "multimodal_content", result["total_size"])
 
+        # Use conversation-specific prompt if conversation mode is enabled
+        effective_prompt = CONVERSATION_MULTIMODAL_PROMPT if conversation_mode else prompt
+
         # Get LLM analysis with all media
         analysis = get_response(
-            text_input=prompt,
+            text_input=effective_prompt,
             audio_b64s=[result["audio_b64"]] if result["audio_b64"] else None,
             image_b64s=[result["image_b64"]] if result["image_b64"] else None,
             video_b64s=[result["video_b64"]] if result["video_b64"] else None,
+            conversation_mode=conversation_mode,
         )
 
         # Log with output preview

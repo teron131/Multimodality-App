@@ -144,6 +144,7 @@ class LLM:
             """Base processing request model."""
 
             prompt: str = Field(default="Please analyze this content and provide insights.")
+            conversation_mode: bool = Field(default=False, description="Enable conversation mode for brief responses")
 
         class Text(Base):
             text: str

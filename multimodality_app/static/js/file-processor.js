@@ -13,6 +13,12 @@ class FileProcessor {
         this.processMultimodal = this.processMultimodal.bind(this);
     }
 
+    // Get conversation mode state
+    getConversationMode() {
+        const checkbox = document.getElementById('conversationMode');
+        return checkbox ? checkbox.checked : false;
+    }
+
     async processText() {
         const textInput = document.getElementById('textInput');
         if (!textInput) {
@@ -38,7 +44,8 @@ class FileProcessor {
                 },
                 body: JSON.stringify({
                     text: text,
-                    prompt: 'Analyze this text and provide insights.'
+                    prompt: 'Analyze this text and provide insights.',
+                    conversation_mode: this.getConversationMode()
                 })
             });
 
@@ -75,6 +82,7 @@ class FileProcessor {
             const formData = new FormData();
             formData.append('audio', file);
             formData.append('prompt', prompt);
+            formData.append('conversation_mode', this.getConversationMode());
 
             const response = await fetch('/api/invoke-audio', {
                 method: 'POST',
@@ -114,6 +122,7 @@ class FileProcessor {
             const formData = new FormData();
             formData.append('image', file);
             formData.append('prompt', prompt);
+            formData.append('conversation_mode', this.getConversationMode());
 
             const response = await fetch('/api/invoke-image', {
                 method: 'POST',
@@ -153,6 +162,7 @@ class FileProcessor {
             const formData = new FormData();
             formData.append('video', file);
             formData.append('prompt', prompt);
+            formData.append('conversation_mode', this.getConversationMode());
 
             const response = await fetch('/api/invoke-video', {
                 method: 'POST',
@@ -197,6 +207,7 @@ class FileProcessor {
                 formData.append('image', imageInput.files[0]);
             }
             formData.append('prompt', prompt);
+            formData.append('conversation_mode', this.getConversationMode());
 
             const response = await fetch('/api/invoke-multimodal', {
                 method: 'POST',

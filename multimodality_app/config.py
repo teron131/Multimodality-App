@@ -41,6 +41,14 @@ DEFAULT_VIDEO_PROMPT = "Please analyze this video and describe what you see, inc
 DEFAULT_MULTIMODAL_PROMPT = "Please analyze this content and provide insights."
 DEFAULT_MAX_TOKENS = 1000000
 
+# Conversation Mode Configuration
+CONVERSATION_MAX_TOKENS = 500
+CONVERSATION_AUDIO_PROMPT = "In one brief sentence (under 15 words), transcribe the main content."
+CONVERSATION_IMAGE_PROMPT = "In one brief sentence (under 15 words), describe what you see."
+CONVERSATION_VIDEO_PROMPT = "In one brief sentence (under 15 words), describe the main action."
+CONVERSATION_MULTIMODAL_PROMPT = "In one brief sentence (under 15 words), summarize the content."
+CONVERSATION_TEXT_SUFFIX = "\n\nIMPORTANT: Respond in ONE brief sentence only (maximum 15 words)."
+
 
 def validate_config() -> None:
     """Validate configuration and create required directories."""
