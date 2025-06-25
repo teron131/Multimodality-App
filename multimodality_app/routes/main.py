@@ -6,9 +6,9 @@ LLM inference is handled in llm.py routes.
 """
 
 from fastapi import APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
-from ..config import GOOGLE_API_KEY, STATIC_DIR
+from ..config import GEMINI_API_KEY, STATIC_DIR
 from ..llm import get_llm_info
 from ..schema import System
 
@@ -64,20 +64,14 @@ async def get_config():
         llm_info = get_llm_info()
         return System.Config(
             backend=llm_info["backend"],
-            google_api_key="Loaded" if GOOGLE_API_KEY else "Not loaded",
-            has_key=bool(GOOGLE_API_KEY),
-            llama_host=llm_info.get("host", ""),
-            llama_port=llm_info.get("port", ""),
-            llama_model=llm_info.get("model", ""),
+            gemini_api_key="Loaded" if llm_info.get("has_api_key") else "Not loaded",
+            has_key=llm_info.get("has_api_key", False),
             server="multimodality-app",
         )
     except Exception as e:
         return System.Config(
             backend="unknown",
-            google_api_key="",
+            gemini_api_key="",
             has_key=False,
-            llama_host="",
-            llama_port="",
-            llama_model="",
             server="multimodality-app",
         )

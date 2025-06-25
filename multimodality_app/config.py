@@ -19,14 +19,9 @@ DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
 SERVER_HOST = os.getenv("SERVER_HOST", "127.0.0.1")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "3030"))
 
-# LLM Backend Configuration
-LLM_BACKEND = os.getenv("LLM_BACKEND", "gemini").lower()
+# Gemini Configuration
 GEMINI_MODEL = os.getenv("GEMINI_MODEL")
-LLAMA_MODEL = os.getenv("LLAMA_MODEL")
-BACKEND_PORT = os.getenv("BACKEND_PORT", "8080")
-
-# API Keys
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent

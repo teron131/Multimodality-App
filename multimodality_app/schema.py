@@ -46,11 +46,8 @@ class System:
 
     class Config(BaseModel):
         backend: str
-        google_api_key: str = ""
+        gemini_api_key: str = ""
         has_key: bool = False
-        llama_host: str = ""
-        llama_port: str = ""
-        llama_model: str = ""
         server: str = "multimodality-app"
 
     class Status(BaseModel):

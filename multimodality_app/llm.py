@@ -1,18 +1,19 @@
 """
-LLM integration with support for multiple backends (Gemini, Llama).
+LLM integration using the Google GenAI SDK for Gemini models.
 
-Provides unified interface for multimodal AI processing with automatic backend switching.
+Provides a unified interface for multimodal AI processing.
 """
 
+import base64
 import logging
-import os
 from pathlib import Path
+from typing import List, Optional, Union
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage
-from langchain_openai import ChatOpenAI
+from google import genai
+from google.genai import types
 
-from .config import CONVERSATION_TEXT_SUFFIX
+from .config import CONVERSATION_TEXT_SUFFIX, GEMINI_API_KEY, GEMINI_MODEL
 from .media_processing.audio import encode_audio
 from .media_processing.image import encode_image
 from .media_processing.video import encode_video
@@ -21,42 +22,62 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Configuration - determine which LLM backend to use
-LLM_BACKEND = os.getenv("LLM_BACKEND", "gemini").lower()  # "gemini" or "llama"
-BACKEND_PORT = os.getenv("BACKEND_PORT", "8080")
+# Initialize Google GenAI client
+api_key = GEMINI_API_KEY
+if not api_key:
+    logger.error("❌ GEMINI_API_KEY not found in environment variables")
+    raise ValueError("GEMINI_API_KEY is required for the Gemini backend")
 
-# Initialize LLM based on backend configuration
-logger.info(f"🔧 Initializing LLM backend: {LLM_BACKEND}")
+client = genai.Client(api_key=api_key)
+logger.info(f"♊ Gemini backend initialized: {GEMINI_MODEL}")
 
-if LLM_BACKEND == "gemini":
-    model_name = os.getenv("GEMINI_MODEL")
-    api_key = os.getenv("GOOGLE_API_KEY")
 
-    if not api_key:
-        logger.error("❌ GOOGLE_API_KEY not found in environment variables")
-        raise ValueError("GOOGLE_API_KEY is required for Gemini backend")
+class AIMessage:
+    """Simple wrapper to maintain compatibility with existing code."""
 
-    llm = ChatOpenAI(
-        model=model_name,
-        api_key=api_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-    )
-    logger.info(f"♊ Gemini backend initialized: {model_name}")
+    def __init__(self, content: str):
+        self.content = content
 
-elif LLM_BACKEND == "llama":
-    model_name = os.getenv("LLAMA_MODEL")
-    base_url = f"http://localhost:{BACKEND_PORT}/v1"
 
-    llm = ChatOpenAI(
-        model=model_name,
-        base_url=base_url,
-    )
-    logger.info(f"🦙 Llama backend initialized: {model_name} at {base_url}")
+def _create_content_parts(
+    text_input: Optional[str] = None,
+    image_b64s: Optional[List[str]] = None,
+    audio_b64s: Optional[List[str]] = None,
+    video_b64s: Optional[List[str]] = None,
+) -> List[Union[str, types.Part]]:
+    """Create content parts for Gemini API.
 
-else:
-    error_msg = f"Unknown LLM backend: {LLM_BACKEND}. Supported: 'gemini', 'llama'"
-    logger.error(f"❌ {error_msg}")
-    raise ValueError(error_msg)
+    Args:
+        text_input: Text content
+        image_b64s: Base64 encoded images
+        audio_b64s: Base64 encoded audio files
+        video_b64s: Base64 encoded videos
+
+    Returns:
+        List of content parts for Gemini API
+    """
+    parts = []
+
+    # Add images
+    if image_b64s:
+        for image_b64 in image_b64s:
+            parts.append(types.Part.from_bytes(data=base64.b64decode(image_b64), mime_type="image/png"))
+
+    # Add audio
+    if audio_b64s:
+        for audio_b64 in audio_b64s:
+            parts.append(types.Part.from_bytes(data=base64.b64decode(audio_b64), mime_type="audio/mp3"))
+
+    # Add videos
+    if video_b64s:
+        for video_b64 in video_b64s:
+            parts.append(types.Part.from_bytes(data=base64.b64decode(video_b64), mime_type="video/mp4"))
+
+    # Add text last for better context
+    if text_input:
+        parts.append(text_input)
+
+    return parts
 
 
 def get_response(
@@ -101,7 +122,7 @@ def get_response(
     if video_b64s:
         inputs_summary.append(f"video_b64s({len(video_b64s)})")
 
-    logger.info(f"🤖 LLM request: {', '.join(inputs_summary)} → {LLM_BACKEND}")
+    logger.info(f"🤖 LLM request: {', '.join(inputs_summary)} → Gemini")
 
     # Validate inputs
     all_inputs = [text_input, image_paths, image_b64s, audio_paths, audio_b64s, video_paths, video_b64s]
@@ -110,88 +131,49 @@ def get_response(
         logger.error("❌ No inputs provided to LLM")
         raise ValueError("At least one input must be provided")
 
-    # Build content array
-    content = []
+    # Process file paths to base64 if needed
+    if image_paths:
+        image_b64s = (image_b64s or []) + [encode_image(path) for path in image_paths]
+    if audio_paths:
+        audio_b64s = (audio_b64s or []) + [encode_audio(path) for path in audio_paths]
+    if video_paths:
+        video_b64s = (video_b64s or []) + [encode_video(path) for path in video_paths]
 
-    # Handle image inputs
-    if image_paths or image_b64s:
-        logger.debug(f"🖼️ Processing images: paths={len(image_paths or [])}, b64s={len(image_b64s or [])}")
-        image_data = image_b64s or [encode_image(path) for path in (image_paths or [])]
-        for i, image_b64 in enumerate(image_data):
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{image_b64}"},
-                }
-            )
-            logger.debug(f"🖼️ Added image {i+1}: {len(image_b64)} chars")
+    # Modify text for conversation mode
+    if conversation_mode and text_input:
+        text_input = text_input + CONVERSATION_TEXT_SUFFIX
+        logger.debug(f"💬 Conversation mode enabled - modified prompt")
 
-    # Handle audio inputs
-    if audio_paths or audio_b64s:
-        logger.debug(f"🎵 Processing audio: paths={len(audio_paths or [])}, b64s={len(audio_b64s or [])}")
-        audio_data = audio_b64s or [encode_audio(path) for path in (audio_paths or [])]
-        for i, audio_b64 in enumerate(audio_data):
-            content.append(
-                {
-                    "type": "input_audio",
-                    "input_audio": {
-                        "data": audio_b64,
-                        "format": "mp3",
-                    },
-                }
-            )
-            logger.debug(f"🎵 Added audio {i+1}: {len(audio_b64)} chars")
+    # Create content parts for Gemini
+    content_parts = _create_content_parts(text_input=text_input, image_b64s=image_b64s, audio_b64s=audio_b64s, video_b64s=video_b64s)
 
-    # Handle video inputs
-    if video_paths or video_b64s:
-        logger.debug(f"🎬 Processing videos: paths={len(video_paths or [])}, b64s={len(video_b64s or [])}")
-        video_data = video_b64s or [encode_video(path) for path in (video_paths or [])]
-        for i, video_b64 in enumerate(video_data):
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:video/mp4;base64,{video_b64}",
-                    },
-                }
-            )
-            logger.debug(f"🎬 Added video {i+1}: {len(video_b64)} chars")
-
-    # If combining text and image/audio/video, place the text prompt after
-    if text_input:
-        # Modify text for conversation mode
-        if conversation_mode:
-            text_input = text_input + CONVERSATION_TEXT_SUFFIX
-            logger.debug(f"💬 Conversation mode enabled - modified prompt")
-
-        content.append({"type": "text", "text": text_input})
-        logger.debug(f"📝 Added text input: {len(text_input)} chars")
-
-    logger.info(f"🚀 Sending {len(content)} content items to {LLM_BACKEND}")
+    logger.info(f"🚀 Sending {len(content_parts)} content parts to Gemini")
 
     try:
-        # Configure LLM for conversation mode
-        if conversation_mode:
-            logger.info(f"💬 Conversation mode enabled - using brief response prompts")
+        # Configure generation parameters
+        config = types.GenerateContentConfig(
+            temperature=0.7,
+            top_p=0.95,
+            max_output_tokens=8192 if not conversation_mode else 150,
+        )
 
-            # For conversation mode, we rely entirely on prompt engineering
-            # as max_tokens causes issues with Gemini's multimodal API
-            response = llm.invoke([HumanMessage(content=content)])
-            logger.info(f"💬 Conversation response length: {len(response.content)} chars")
+        # Generate response using Gemini
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=content_parts, config=config)
 
-        else:
-            response = llm.invoke([HumanMessage(content=content)])
+        # Extract text from response
+        response_text = response.text if hasattr(response, "text") else str(response)
 
-        logger.info(f"✅ LLM response received: {len(response.content)} chars")
-        if conversation_mode and response.content:
-            logger.debug(f"💬 Conversation response content: {response.content[:200]}...")
+        logger.info(f"✅ LLM response received: {len(response_text)} chars")
+        if conversation_mode and response_text:
+            logger.debug(f"💬 Conversation response content: {response_text[:200]}...")
 
         # Final check for empty response
-        if not response.content:
+        if not response_text:
             logger.error("❌ LLM returned empty response")
-            response.content = "I apologize, but I couldn't generate a response. Please try again."
+            response_text = "I apologize, but I couldn't generate a response. Please try again."
 
-        return response
+        return AIMessage(content=response_text)
+
     except Exception as e:
         logger.error(f"❌ LLM request failed: {e}", exc_info=True)
         raise
@@ -203,41 +185,19 @@ def get_llm_info() -> dict:
     Returns:
         Dictionary containing backend configuration details.
     """
-    logger.debug(f"🔍 Getting LLM info for backend: {LLM_BACKEND}")
+    logger.debug("🔍 Getting LLM info for Gemini backend")
 
-    if LLM_BACKEND == "gemini":
-        model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-        has_api_key = bool(os.getenv("GOOGLE_API_KEY"))
+    has_api_key = bool(GEMINI_API_KEY)
 
-        info = {
-            "backend": "gemini",
-            "model": model,
-            "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-            "local": False,
-            "api_key_required": True,
-            "has_api_key": has_api_key,
-        }
+    info = {
+        "backend": "gemini",
+        "model": GEMINI_MODEL,
+        "url": "https://generativelanguage.googleapis.com/v1beta/",
+        "local": False,
+        "api_key_required": True,
+        "has_api_key": has_api_key,
+        "sdk": "google-genai",
+    }
 
-        logger.debug(f"♊ Gemini info: model={model}, has_key={has_api_key}")
-        return info
-
-    elif LLM_BACKEND == "llama":
-        model = os.getenv("LLAMA_MODEL", "llama3.2")
-        url = f"http://localhost:{BACKEND_PORT}/v1"
-
-        info = {
-            "backend": "llama",
-            "host": "localhost",
-            "port": BACKEND_PORT,
-            "model": model,
-            "url": url,
-            "local": True,
-            "api_key_required": False,
-        }
-
-        logger.debug(f"🦙 Llama info: model={model}, url={url}")
-        return info
-
-    else:
-        logger.error(f"❌ Unknown backend in get_llm_info: {LLM_BACKEND}")
-        return {"error": f"Unknown backend: {LLM_BACKEND}"}
+    logger.debug(f"♊ Gemini info: model={GEMINI_MODEL}, has_key={has_api_key}")
+    return info
